@@ -1,0 +1,260 @@
+namespace ChurchProjector;
+
+public partial class Form1 : Form
+{
+    private readonly PresentationTheme _theme = new();
+    private readonly LocalDataStore _store = new();
+    private readonly AppData _data;
+    private readonly List<Song> _library;
+    private readonly List<AgendaItem> _agenda;
+    private readonly List<BibleTranslation> _bibles;
+    private readonly List<string> _slides = [];
+    private readonly List<int> _verseSlideIndexes = [];
+
+    private RichTextBox _lyricsBox = null!;
+    private TextBox _titleBox = null!;
+    private ListBox _slideList = null!;
+    private ListBox _agendaList = null!;
+    private ListBox _libraryList = null!;
+    private Label _slideStatus = null!;
+    private SlideCanvas _audiencePreview = null!;
+    private ComboBox _fontFamily = null!;
+    private NumericUpDown _fontSize = null!;
+    private Button _boldButton = null!;
+    private Button _fontColorButton = null!;
+    private ComboBox _alignment = null!;
+    private NumericUpDown _maxLines = null!;
+    private TrackBar _brightness = null!;
+    private Control _songWorkspace = null!;
+    private Control _bibleWorkspace = null!;
+    private SlideCanvas _biblePreview = null!;
+    private ListBox _bibleList = null!;
+    private ListBox _bibleVerseList = null!;
+    private TextBox _bibleNameBox = null!;
+    private TextBox _bibleBookBox = null!;
+    private NumericUpDown _bibleChapter = null!;
+    private NumericUpDown _bibleVerseNumber = null!;
+    private RichTextBox _bibleVerseText = null!;
+    private ProjectorForm? _projector;
+    private int _currentSlide;
+    private Guid? _currentSongId;
+    private Guid? _currentBibleId;
+    private Guid? _currentBibleVerseId;
+    private bool _updating;
+
+    private readonly Color _brand = Color.FromArgb(22, 113, 180);
+    private readonly Color _darkBrand = Color.FromArgb(14, 83, 143);
+    private readonly Color _panelBorder = Color.FromArgb(210, 218, 227);
+
+    public Form1()
+    {
+        InitializeComponent();
+        _data = _store.Load();
+        if (_data.Songs.Count == 0)
+        {
+            _data.Songs.AddRange(DefaultSongs());
+            _store.Save(_data);
+        }
+        _library = _data.Songs;
+        _agenda = _data.Agenda;
+        _bibles = _data.Bibles;
+        BuildInterface();
+        RefreshAgenda();
+        if (_library.Count > 0) LoadSong(_library[0]);
+    }
+
+    private static IEnumerable<Song> DefaultSongs() =>
+    [
+        new("Great Is Your Faithfulness", "Great is Your faithfulness, O God my Father\nThere is no shadow of turning with You\n\nYou never change, You are compassionate\nAll that You are is forever true\n\nGreat is Your faithfulness\nGreat is Your faithfulness\nMorning by morning new mercies I see\n\nAll I have needed Your hand has provided\nGreat is Your faithfulness, Lord, unto me"),
+        new("Way Maker", "You are here, moving in our midst\nI worship You, I worship You\n\nYou are here, working in this place\nI worship You, I worship You\n\nWay Maker, miracle worker\nPromise keeper, light in the darkness\nMy God, that is who You are"),
+        new("Amazing Grace", "Amazing grace, how sweet the sound\nThat saved a wretch like me\n\nI once was lost, but now am found\nWas blind, but now I see")
+    ];
+
+    private void LoadSong(Song song)
+        => LoadSongContent(song.Title, song.Lyrics, song.Id, "Loaded from Song Library");
+
+    private void LoadSongContent(string title, string lyrics, Guid? songId, string source)
+    {
+        _updating = true;
+        _titleBox.Text = title;
+        _lyricsBox.Text = lyrics;
+        _currentSongId = songId;
+        _updating = false;
+        RebuildSlides();
+        _slideStatus.Text = source + " - " + title;
+    }
+
+    private void FilterLibrary(string text)
+    {
+        if (_libraryList is null) return;
+        _libraryList.BeginUpdate();
+        _libraryList.Items.Clear();
+        foreach (var song in _library.Where(s => s.Title.Contains(text, StringComparison.OrdinalIgnoreCase))) _libraryList.Items.Add(song);
+        _libraryList.EndUpdate();
+    }
+
+    private void AddCurrentSongToAgenda()
+    {
+        var name = string.IsNullOrWhiteSpace(_titleBox.Text) ? "Untitled song" : _titleBox.Text.Trim();
+        _agenda.Add(new AgendaItem { SongId = _currentSongId, Title = name, LyricsSnapshot = _lyricsBox.Text });
+        Persist();
+        RefreshAgenda();
+        _agendaList.SelectedIndex = _agenda.Count - 1;
+    }
+
+    private void RebuildSlides()
+    {
+        if (_lyricsBox is null) return;
+        var maxLines = (int)_maxLines.Value;
+        var chunks = _lyricsBox.Text.Replace("\r", "").Split("\n\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        _slides.Clear();
+        _verseSlideIndexes.Clear();
+        foreach (var chunk in chunks)
+        {
+            _verseSlideIndexes.Add(_slides.Count);
+            var lines = chunk.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            for (var start = 0; start < lines.Length; start += maxLines)
+                _slides.Add(string.Join(Environment.NewLine, lines.Skip(start).Take(maxLines)));
+        }
+        if (_slides.Count == 0)
+        {
+            _slides.Add("Type song lyrics here");
+            _verseSlideIndexes.Add(0);
+        }
+
+        _updating = true;
+        _slideList.Items.Clear();
+        for (var index = 0; index < _slides.Count; index++)
+        {
+            var summary = _slides[index].Replace(Environment.NewLine, "  /  ");
+            var verseIndex = _verseSlideIndexes.FindLastIndex(start => start <= index);
+            var part = index == _verseSlideIndexes[verseIndex] ? "" : "b";
+            _slideList.Items.Add($"V{verseIndex + 1}{part}   {summary}");
+        }
+        _currentSlide = Math.Clamp(_currentSlide, 0, _slides.Count - 1);
+        _slideList.SelectedIndex = _currentSlide;
+        _updating = false;
+        RefreshSlides();
+    }
+
+    private void SelectSlide(int requested)
+    {
+        if (_slides.Count == 0) return;
+        _currentSlide = Math.Clamp(requested, 0, _slides.Count - 1);
+        _updating = true;
+        _slideList.SelectedIndex = _currentSlide;
+        _updating = false;
+        RefreshSlides();
+    }
+
+    private void RefreshSlides()
+    {
+        if (_slides.Count == 0) return;
+        if (_audiencePreview is not null)
+        {
+            _audiencePreview.SlideText = _slides[_currentSlide];
+            _audiencePreview.Invalidate();
+        }
+        if (_biblePreview is not null)
+        {
+            _biblePreview.SlideText = _slides[_currentSlide];
+            _biblePreview.Invalidate();
+        }
+        if (_slideStatus is not null) _slideStatus.Text = $"Slide {_currentSlide + 1} of {_slides.Count} - {_theme.AspectRatio} - {_theme.FontFamily}";
+        _projector?.SetSlide(_slides[_currentSlide], _theme);
+    }
+
+    private void SetTextStyle(Color color, bool bold)
+    {
+        _theme.TextColor = color;
+        _theme.Bold = bold;
+        _fontColorButton.BackColor = color;
+        UpdateBoldButton();
+        RefreshSlides();
+    }
+
+    private void UpdateBoldButton()
+    {
+        _boldButton.BackColor = _theme.Bold ? _brand : Color.FromArgb(232, 237, 244);
+        _boldButton.ForeColor = _theme.Bold ? Color.White : Color.FromArgb(31, 48, 68);
+    }
+
+    private void ChooseTextColor()
+    {
+        using var dialog = new ColorDialog { Color = _theme.TextColor, FullOpen = true };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        _theme.TextColor = dialog.Color;
+        _fontColorButton.BackColor = dialog.Color;
+        RefreshSlides();
+    }
+
+    private void ChooseBackgroundColor()
+    {
+        using var dialog = new ColorDialog { Color = _theme.BackgroundColor, FullOpen = true };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        _theme.BackgroundColor = dialog.Color;
+        _theme.BackgroundImage = null;
+        RefreshSlides();
+    }
+
+    private void ChooseBackgroundImage()
+    {
+        using var dialog = new OpenFileDialog { Filter = "Image files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All files|*.*", Title = "Choose slide background" };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        try
+        {
+            using var source = Image.FromFile(dialog.FileName);
+            var replacement = new Bitmap(source);
+            _theme.BackgroundImage?.Dispose();
+            _theme.BackgroundImage = replacement;
+            RefreshSlides();
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(this, "The selected image could not be used.\n\n" + exception.Message, "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    private void ToggleProjector()
+    {
+        if (_projector is { IsDisposed: false })
+        {
+            _projector.Close();
+            _projector = null;
+            return;
+        }
+        _projector = new ProjectorForm();
+        _projector.FormClosed += (_, _) => _projector = null;
+        var screen = Screen.AllScreens.Length > 1 ? Screen.AllScreens[1] : Screen.PrimaryScreen!;
+        _projector.StartPosition = FormStartPosition.Manual;
+        _projector.Bounds = screen.Bounds;
+        _projector.Show();
+        RefreshSlides();
+    }
+
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        var verse = keyData switch
+        {
+            Keys.D1 or Keys.NumPad1 => 1, Keys.D2 or Keys.NumPad2 => 2, Keys.D3 or Keys.NumPad3 => 3,
+            Keys.D4 or Keys.NumPad4 => 4, Keys.D5 or Keys.NumPad5 => 5, Keys.D6 or Keys.NumPad6 => 6,
+            Keys.D7 or Keys.NumPad7 => 7, Keys.D8 or Keys.NumPad8 => 8, Keys.D9 or Keys.NumPad9 => 9,
+            _ => 0
+        };
+        if (verse > 0 && verse <= _verseSlideIndexes.Count)
+        {
+            SelectSlide(_verseSlideIndexes[verse - 1]);
+            return true;
+        }
+        if (keyData is Keys.Down or Keys.PageDown or Keys.Right) { SelectSlide(_currentSlide + 1); return true; }
+        if (keyData is Keys.Up or Keys.PageUp or Keys.Left) { SelectSlide(_currentSlide - 1); return true; }
+        if (keyData == Keys.F5) { ToggleProjector(); return true; }
+        return base.ProcessCmdKey(ref msg, keyData);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) _theme.BackgroundImage?.Dispose();
+        base.Dispose(disposing);
+    }
+}
