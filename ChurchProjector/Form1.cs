@@ -27,6 +27,7 @@ public partial class Form1 : Form
     private TrackBar _brightness = null!;
     private Control _songWorkspace = null!;
     private Control _bibleWorkspace = null!;
+    private Control _helpWorkspace = null!;
     private SlideCanvas _biblePreview = null!;
     private ListBox _bibleList = null!;
     private ListBox _bibleVerseList = null!;
