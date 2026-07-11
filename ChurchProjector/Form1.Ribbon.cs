@@ -133,33 +133,40 @@ public partial class Form1
                  })
         {
             var swatch = Button("", color, Color.White, 36, 36);
-            swatch.Click += (_, _) => { _theme.BackgroundColor = color; _theme.BackgroundImage = null; RefreshSlides(); };
+            swatch.Click += (_, _) => SetSolidBackground(color);
             Add(colour, swatch);
         }
         var more = Button("More…", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 56, 36);
         more.Click += (_, _) => ChooseBackgroundColor();
         Add(colour, more);
 
-        var image = RibbonGroup("Image", 250);
-        var choose = Button("Choose image…", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 105, 34);
+        var media = RibbonGroup("Saved backgrounds", 390);
+        var choose = Button("Import image", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 95, 34);
         choose.Click += (_, _) => ChooseBackgroundImage();
-        var remove = Button("Remove image", Color.White, Color.FromArgb(31, 48, 68), 96, 34);
-        remove.Click += (_, _) => { _theme.BackgroundImage?.Dispose(); _theme.BackgroundImage = null; RefreshSlides(); };
-        Add(image, choose, remove, Hint("Images crop to fill each slide"));
+        var video = Button("Import video", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 95, 34);
+        video.Click += (_, _) => ImportBackground("Video");
+        _backgroundPicker = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 180, Margin = new Padding(0, 4, 8, 0) };
+        _backgroundPicker.SelectedIndexChanged += (_, _) => { if (!_updating && _backgroundPicker.SelectedItem is BackgroundAsset asset) ApplyBackgroundAsset(asset); };
+        _videoLoop = new CheckBox { Text = "Loop video", Checked = _theme.VideoLoop, AutoSize = true, Margin = new Padding(0, 10, 8, 0) };
+        _videoLoop.CheckedChanged += (_, _) => { _theme.VideoLoop = _videoLoop.Checked; SaveBackgroundPreferences(); RefreshSlides(); };
+        var clear = Button("Clear", Color.White, Color.FromArgb(31, 48, 68), 55, 30);
+        clear.Click += (_, _) => { ClearBackgroundSelection(); SaveBackgroundPreferences(); RefreshSlides(); };
+        Add(media, choose, video, _backgroundPicker, _videoLoop, clear, Hint("Imported files are kept in the MPH Songs background library."));
+        RefreshBackgroundPicker();
 
         var brightness = RibbonGroup("Brightness", 180);
-        _brightness = new TrackBar { Minimum = -75, Maximum = 75, Value = 0, TickFrequency = 25, Width = 145, Height = 38 };
-        _brightness.ValueChanged += (_, _) => { _theme.Brightness = _brightness.Value; RefreshSlides(); };
+        _brightness = new TrackBar { Minimum = -75, Maximum = 75, Value = _theme.Brightness, TickFrequency = 25, Width = 145, Height = 38 };
+        _brightness.ValueChanged += (_, _) => { _theme.Brightness = _brightness.Value; SaveBackgroundPreferences(); RefreshSlides(); };
         Add(brightness, _brightness);
 
-        var ratio = RibbonGroup("Aspect ratio", 200);
-        foreach (var value in new[] { "16:9", "4:3", "16:10" })
+        var ratio = RibbonGroup("Aspect ratio", 325);
+        foreach (var value in new[] { "16:9", "4:3", "16:10", "9:16", "3:4" })
         {
-            var choice = Button(value, value == "16:9" ? _brand : Color.White, value == "16:9" ? Color.White : Color.FromArgb(31, 48, 68), 52, 32);
+            var choice = Button(value, value == _theme.AspectRatio ? _brand : Color.White, value == _theme.AspectRatio ? Color.White : Color.FromArgb(31, 48, 68), 52, 32);
             choice.Click += (_, _) => SetAspectRatio(value, ratio);
             Add(ratio, choice);
         }
-        ribbon.Controls.AddRange([colour, image, brightness, ratio]);
+        ribbon.Controls.AddRange([colour, media, brightness, ratio]);
         return ribbon;
     }
 
@@ -172,6 +179,7 @@ public partial class Form1
             control.BackColor = selected ? _brand : Color.White;
             control.ForeColor = selected ? Color.White : Color.FromArgb(31, 48, 68);
         }
+        SaveBackgroundPreferences();
         RefreshSlides();
     }
 }

@@ -274,11 +274,13 @@ public partial class Form1
 
     private void ImportBible()
     {
-        using var dialog = new OpenFileDialog { Filter = "Bible JSON|*.json|All files|*.*", Title = "Import Bible translation" };
+        using var dialog = new OpenFileDialog { Filter = "Bible files|*.json;*.db;*.vpc|SQLite Bible database|*.db|JSON Bible|*.json|VideoPsalm package|*.vpc|All files|*.*", Title = "Import Bible translation" };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
         try
         {
-            var bible = _store.ImportBible(dialog.FileName);
+            var bible = string.Equals(Path.GetExtension(dialog.FileName), ".db", StringComparison.OrdinalIgnoreCase)
+                ? _store.ImportSqliteBible(dialog.FileName)
+                : _store.ImportBible(dialog.FileName);
             _bibles.Add(bible);
             Persist();
             RefreshBibleList();

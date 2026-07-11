@@ -83,9 +83,12 @@ TEXT TAB
 - Use the Quick style buttons for readable light, warm, or dark text styles.
 
 BACKGROUND TAB
-- Choose a solid background colour or select a custom image.
+- Choose a solid background colour, import a custom image, or import a video.
+- Imported images and videos are copied into the MPH Songs background library, so they remain available after restarting the app.
+- Select a saved item from the background list to use it again. Clear returns to a solid colour.
+- Tick Loop video to repeat a video continuously. Untick it to let the video play once and hold its final frame.
 - Adjust brightness for clear projected text.
-- Pick the projector aspect ratio: 16:9, 4:3, or 16:10.
+- Pick landscape ratios 16:9, 4:3, or 16:10, or portrait ratios 9:16 and 3:4.
 
 BIBLE TAB
 - New Bible creates a Bible translation record. Save Bible stores its name even before verses are added.

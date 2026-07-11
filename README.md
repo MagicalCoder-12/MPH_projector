@@ -7,7 +7,7 @@ A focused Windows song-projection application for church services.
 1. Create, open, edit, save, and delete songs. Songs and agenda items persist in the local MPH Songs library.
 2. Add, update, remove, and reorder service-agenda entries. Each entry keeps its own lyric snapshot.
 3. Turn song lyrics into slides automatically. Separate verses with blank lines; press **1** through **9** to jump straight to that verse.
-4. Use the **Text** and **Background** ribbons to format the live slide.
+4. Use the **Text** and **Background** ribbons to format the live slide. Imported images and videos are copied into the persistent MPH Songs background library; videos can loop or play once.
 5. Use the **Bible** tab to create/delete Bible translations, create/edit/delete verses, import a Bible JSON file, preview a verse, and project it.
 6. Present slides in a borderless projector window, using the second monitor when connected.
 

@@ -13,6 +13,9 @@ public sealed class PresentationTheme
     public string Alignment { get; set; } = "Centre";
     public Color BackgroundColor { get; set; } = Color.FromArgb(22, 34, 52);
     public Image? BackgroundImage { get; set; }
+    public Guid? BackgroundAssetId { get; set; }
+    public string? BackgroundVideoPath { get; set; }
+    public bool VideoLoop { get; set; } = true;
     public int Brightness { get; set; }
     public string AspectRatio { get; set; } = "16:9";
 }
@@ -80,7 +83,14 @@ public sealed class SlideCanvas : Control
 
     private static Rectangle FitAspect(Rectangle container, string ratio)
     {
-        var target = ratio == "4:3" ? 4D / 3 : ratio == "16:10" ? 16D / 10 : 16D / 9;
+        var values = ratio.Split(':');
+        var target = values.Length == 2
+                     && double.TryParse(values[0], out var widthRatio)
+                     && double.TryParse(values[1], out var heightRatio)
+                     && widthRatio > 0
+                     && heightRatio > 0
+            ? widthRatio / heightRatio
+            : 16D / 9;
         var width = container.Width;
         var height = (int)Math.Round(width / target);
         if (height > container.Height)

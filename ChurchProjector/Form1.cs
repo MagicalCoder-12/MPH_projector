@@ -8,6 +8,7 @@ public partial class Form1 : Form
     private readonly List<Song> _library;
     private readonly List<AgendaItem> _agenda;
     private readonly List<BibleTranslation> _bibles;
+    private readonly List<BackgroundAsset> _backgrounds;
     private readonly List<string> _slides = [];
     private readonly List<int> _verseSlideIndexes = [];
 
@@ -25,6 +26,8 @@ public partial class Form1 : Form
     private ComboBox _alignment = null!;
     private NumericUpDown _maxLines = null!;
     private TrackBar _brightness = null!;
+    private ComboBox _backgroundPicker = null!;
+    private CheckBox _videoLoop = null!;
     private Control _songWorkspace = null!;
     private Control _bibleWorkspace = null!;
     private Control _helpWorkspace = null!;
@@ -37,6 +40,7 @@ public partial class Form1 : Form
     private NumericUpDown _bibleVerseNumber = null!;
     private RichTextBox _bibleVerseText = null!;
     private ProjectorForm? _projector;
+    private VideoProjectorWindow? _videoProjector;
     private int _currentSlide;
     private Guid? _currentSongId;
     private Guid? _currentBibleId;
@@ -59,6 +63,10 @@ public partial class Form1 : Form
         _library = _data.Songs;
         _agenda = _data.Agenda;
         _bibles = _data.Bibles;
+        ImportConfiguredTeluguBible();
+        _backgrounds = _data.Backgrounds;
+        SyncConfiguredBackgrounds();
+        RestoreBackgroundPreferences();
         BuildInterface();
         RefreshAgenda();
         if (_library.Count > 0) LoadSong(_library[0]);
@@ -70,6 +78,21 @@ public partial class Form1 : Form
         new("Way Maker", "You are here, moving in our midst\nI worship You, I worship You\n\nYou are here, working in this place\nI worship You, I worship You\n\nWay Maker, miracle worker\nPromise keeper, light in the darkness\nMy God, that is who You are"),
         new("Amazing Grace", "Amazing grace, how sweet the sound\nThat saved a wretch like me\n\nI once was lost, but now am found\nWas blind, but now I see")
     ];
+
+    private void ImportConfiguredTeluguBible()
+    {
+        const string teluguBiblePath = @"C:\Users\ajith\AppData\Roaming\MPH_projector\Bible\telugu.db";
+        if (!File.Exists(teluguBiblePath) || _bibles.Any(bible => string.Equals(bible.Name, "Telugu_Bible_BSI", StringComparison.OrdinalIgnoreCase))) return;
+        try
+        {
+            _bibles.Add(_store.ImportSqliteBible(teluguBiblePath));
+            _store.Save(_data);
+        }
+        catch
+        {
+            // The Bible can still be imported manually through the Bible tab if the source file changes.
+        }
+    }
 
     private void LoadSong(Song song)
         => LoadSongContent(song.Title, song.Lyrics, song.Id, "Loaded from Song Library");
@@ -163,6 +186,7 @@ public partial class Form1 : Form
         }
         if (_slideStatus is not null) _slideStatus.Text = $"Slide {_currentSlide + 1} of {_slides.Count} - {_theme.AspectRatio} - {_theme.FontFamily}";
         _projector?.SetSlide(_slides[_currentSlide], _theme);
+        _videoProjector?.SetSlide(_slides[_currentSlide], _theme);
     }
 
     private void SetTextStyle(Color color, bool bold)
@@ -194,26 +218,14 @@ public partial class Form1 : Form
         using var dialog = new ColorDialog { Color = _theme.BackgroundColor, FullOpen = true };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
         _theme.BackgroundColor = dialog.Color;
-        _theme.BackgroundImage = null;
+        ClearBackgroundSelection();
+        SaveBackgroundPreferences();
         RefreshSlides();
     }
 
     private void ChooseBackgroundImage()
     {
-        using var dialog = new OpenFileDialog { Filter = "Image files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All files|*.*", Title = "Choose slide background" };
-        if (dialog.ShowDialog(this) != DialogResult.OK) return;
-        try
-        {
-            using var source = Image.FromFile(dialog.FileName);
-            var replacement = new Bitmap(source);
-            _theme.BackgroundImage?.Dispose();
-            _theme.BackgroundImage = replacement;
-            RefreshSlides();
-        }
-        catch (Exception exception)
-        {
-            MessageBox.Show(this, "The selected image could not be used.\n\n" + exception.Message, "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
+        ImportBackground("Image");
     }
 
     private void ToggleProjector()
@@ -224,9 +236,23 @@ public partial class Form1 : Form
             _projector = null;
             return;
         }
+        if (_videoProjector is not null)
+        {
+            _videoProjector.Close();
+            _videoProjector = null;
+            return;
+        }
+        var screen = Screen.AllScreens.Length > 1 ? Screen.AllScreens[1] : Screen.PrimaryScreen!;
+        if (!string.IsNullOrWhiteSpace(_theme.BackgroundVideoPath) && File.Exists(_theme.BackgroundVideoPath))
+        {
+            _videoProjector = new VideoProjectorWindow(screen);
+            _videoProjector.Closed += (_, _) => _videoProjector = null;
+            _videoProjector.Show();
+            RefreshSlides();
+            return;
+        }
         _projector = new ProjectorForm();
         _projector.FormClosed += (_, _) => _projector = null;
-        var screen = Screen.AllScreens.Length > 1 ? Screen.AllScreens[1] : Screen.PrimaryScreen!;
         _projector.StartPosition = FormStartPosition.Manual;
         _projector.Bounds = screen.Bounds;
         _projector.Show();
@@ -255,7 +281,11 @@ public partial class Form1 : Form
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing) _theme.BackgroundImage?.Dispose();
+        if (disposing)
+        {
+            _theme.BackgroundImage?.Dispose();
+            _videoProjector?.Close();
+        }
         base.Dispose(disposing);
     }
 }
