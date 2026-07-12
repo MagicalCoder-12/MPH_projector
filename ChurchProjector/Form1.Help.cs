@@ -93,7 +93,9 @@ BACKGROUND TAB
 BIBLE TAB
 - New Bible creates a Bible translation record. Save Bible stores its name even before verses are added.
 - Enter a Book, Chapter, Verse, and verse text, then choose Save verse.
-- Select a verse to preview it. Show verse sends it to the live preview and projector.
+- Use Ctrl-click to select separate verses, or click and drag over the verse list to select a continuous range.
+- Selected verses become consecutive live slides. Add verse adds the selected passage to the service agenda.
+- Drag the separators between the agenda, books, verses, and preview panels to give each area more room.
 - Import accepts a JSON translation file. See the project README for its required format.
 
 PROJECTOR

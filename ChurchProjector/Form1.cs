@@ -34,6 +34,11 @@ public partial class Form1 : Form
     private SlideCanvas _biblePreview = null!;
     private ListBox _bibleList = null!;
     private ListBox _bibleVerseList = null!;
+    private ListBox _bibleAgendaList = null!;
+    private ListBox _bibleBookList = null!;
+    private ListBox _bibleChapterList = null!;
+    private ComboBox _bibleTranslationPicker = null!;
+    private Label _bibleReferenceLabel = null!;
     private TextBox _bibleNameBox = null!;
     private TextBox _bibleBookBox = null!;
     private NumericUpDown _bibleChapter = null!;
@@ -253,8 +258,7 @@ public partial class Form1 : Form
         }
         _projector = new ProjectorForm();
         _projector.FormClosed += (_, _) => _projector = null;
-        _projector.StartPosition = FormStartPosition.Manual;
-        _projector.Bounds = screen.Bounds;
+        _projector.TargetScreen = screen;
         _projector.Show();
         RefreshSlides();
     }

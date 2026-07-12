@@ -2,6 +2,16 @@ namespace ChurchProjector;
 
 public partial class Form1
 {
+    private static readonly string[] CanonicalBookOrder =
+    [
+        "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy", "Joshua", "Judges", "Ruth", "1 Samuel", "2 Samuel",
+        "1 Kings", "2 Kings", "1 Chronicles", "2 Chronicles", "Ezra", "Nehemiah", "Esther", "Job", "Psalm", "Proverbs",
+        "Ecclesiastes", "Song of Solomon", "Isaiah", "Jeremiah", "Lamentations", "Ezekiel", "Daniel", "Hosea", "Joel", "Amos",
+        "Obadiah", "Jonah", "Micah", "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi", "Matthew",
+        "Mark", "Luke", "John", "Acts", "Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians", "Philippians",
+        "Colossians", "1 Thessalonians", "2 Thessalonians", "1 Timothy", "2 Timothy", "Titus", "Philemon", "Hebrews", "James", "1 Peter",
+        "2 Peter", "1 John", "2 John", "3 John", "Jude", "Revelation"
+    ];
     private Control BuildBibleRibbon()
     {
         var ribbon = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, AutoScroll = true, BackColor = Color.White };
@@ -28,13 +38,68 @@ public partial class Form1
     {
         var workspace = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, Padding = new Padding(10, 10, 10, 12), BackColor = Color.FromArgb(241, 244, 247) };
         workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28));
-        workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42));
-        workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));
+        workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 44));
+        workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28));
         workspace.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        workspace.Controls.Add(BuildBibleLibraryPanel(), 0, 0);
-        workspace.Controls.Add(BuildBibleEditorPanel(), 1, 0);
+        workspace.Controls.Add(BuildBibleNavigatorPanel(), 0, 0);
+        workspace.Controls.Add(BuildBibleVersesPanel(), 1, 0);
         workspace.Controls.Add(BuildBiblePreviewPanel(), 2, 0);
+        RefreshBibleVerses();
         return workspace;
+    }
+
+    private Control BuildBibleNavigatorPanel()
+    {
+        var outer = Section("Bible", "Choose a translation, book, and chapter");
+        var content = (TableLayoutPanel)outer.Tag!;
+        content.RowCount = 3;
+        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        content.Controls.Add(SmallLabel("TRANSLATION"), 0, 0);
+        _bibleTranslationPicker = new ComboBox { Dock = DockStyle.Top, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 0, 0, 8) };
+        _bibleTranslationPicker.SelectedIndexChanged += (_, _) => { if (!_updating && _bibleTranslationPicker.SelectedItem is BibleTranslation bible) LoadBible(bible); };
+        content.Controls.Add(_bibleTranslationPicker, 0, 1);
+
+        var navigation = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2 };
+        navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 62));
+        navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
+        navigation.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        navigation.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        navigation.Controls.Add(SmallLabel("BOOKS"), 0, 0);
+        navigation.Controls.Add(SmallLabel("CHAPTER"), 1, 0);
+        _bibleBookList = new ListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 10F) };
+        _bibleBookList.SelectedIndexChanged += (_, _) => { if (!_updating) RefreshBibleChapters(); };
+        _bibleChapterList = new ListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 10F) };
+        _bibleChapterList.SelectedIndexChanged += (_, _) => { if (!_updating) RefreshBibleVerses(); };
+        navigation.Controls.Add(_bibleBookList, 0, 1);
+        navigation.Controls.Add(_bibleChapterList, 1, 1);
+        content.Controls.Add(navigation, 0, 2);
+        RefreshBibleTranslationPicker();
+        return outer;
+    }
+
+    private Control BuildBibleVersesPanel()
+    {
+        var outer = Section("Verses", "Select a verse to preview or add to the agenda");
+        var content = (TableLayoutPanel)outer.Tag!;
+        content.RowCount = 3;
+        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _bibleReferenceLabel = new Label { Text = "Choose a Bible book and chapter", AutoSize = true, ForeColor = Color.FromArgb(52, 94, 130), Font = new Font("Segoe UI", 10F, FontStyle.Bold), Margin = new Padding(0, 0, 0, 7) };
+        _bibleVerseList = new VerseListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 10F), Margin = new Padding(0, 0, 0, 7) };
+        _bibleVerseList.SelectedIndexChanged += (_, _) => { if (!_updating && _bibleVerseList.SelectedItems.Count > 0) PreviewSelectedBibleVerses(); };
+        var actions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 36, WrapContents = false };
+        var add = Button("+ Add verse", _brand, Color.White, 94, 32);
+        add.Click += (_, _) => AddSelectedBibleVerseToAgenda();
+        var show = Button("Show live", Color.FromArgb(35, 157, 87), Color.White, 85, 32);
+        show.Click += (_, _) => ShowSelectedBibleVerse();
+        actions.Controls.AddRange([add, show]);
+        content.Controls.Add(_bibleReferenceLabel, 0, 0);
+        content.Controls.Add(_bibleVerseList, 0, 1);
+        content.Controls.Add(actions, 0, 2);
+        return outer;
     }
 
     private Control BuildBibleLibraryPanel()
@@ -141,13 +206,16 @@ public partial class Form1
 
     private void RefreshBibleList()
     {
-        if (_bibleList is null) return;
         _updating = true;
-        _bibleList.BeginUpdate();
-        _bibleList.Items.Clear();
-        foreach (var bible in _bibles.OrderBy(item => item.Name)) _bibleList.Items.Add(bible);
-        _bibleList.EndUpdate();
+        if (_bibleList is not null)
+        {
+            _bibleList.BeginUpdate();
+            _bibleList.Items.Clear();
+            foreach (var bible in _bibles.OrderBy(item => item.Name)) _bibleList.Items.Add(bible);
+            _bibleList.EndUpdate();
+        }
         _updating = false;
+        RefreshBibleTranslationPicker();
     }
 
     private void LoadBible(BibleTranslation bible)
@@ -155,26 +223,120 @@ public partial class Form1
         _currentBibleId = bible.Id;
         _currentBibleVerseId = null;
         _updating = true;
-        _bibleNameBox.Text = bible.Name;
-        _bibleBookBox.Text = "Genesis";
-        _bibleChapter.Value = 1;
-        _bibleVerseNumber.Value = 1;
-        _bibleVerseText.Text = "";
+        if (_bibleNameBox is not null) _bibleNameBox.Text = bible.Name;
+        if (_bibleBookBox is not null) _bibleBookBox.Text = "Genesis";
+        if (_bibleChapter is not null) _bibleChapter.Value = 1;
+        if (_bibleVerseNumber is not null) _bibleVerseNumber.Value = 1;
+        if (_bibleVerseText is not null) _bibleVerseText.Text = "";
         _updating = false;
-        RefreshBibleVerses();
+        RefreshBibleBooks();
     }
 
     private void RefreshBibleVerses()
     {
         if (_bibleVerseList is null) return;
         var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
+        var book = _bibleBookList?.SelectedItem as string;
+        var chapter = _bibleChapterList?.SelectedItem is int selectedChapter ? selectedChapter : (int?)null;
         _updating = true;
         _bibleVerseList.BeginUpdate();
         _bibleVerseList.Items.Clear();
         if (bible is not null)
-            foreach (var verse in bible.Verses.OrderBy(item => item.Book).ThenBy(item => item.Chapter).ThenBy(item => item.Verse)) _bibleVerseList.Items.Add(verse);
+        {
+            var verses = bible.Verses.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(book)) verses = verses.Where(item => item.Book == book);
+            if (chapter is not null) verses = verses.Where(item => item.Chapter == chapter.Value);
+            foreach (var verse in verses.OrderBy(item => item.Verse)) _bibleVerseList.Items.Add(verse);
+        }
         _bibleVerseList.EndUpdate();
         _updating = false;
+        if (_bibleReferenceLabel is not null)
+            _bibleReferenceLabel.Text = string.IsNullOrWhiteSpace(book) ? "Choose a Bible book and chapter" : chapter is null ? book : $"{book} {chapter}";
+    }
+
+    private void RefreshBibleTranslationPicker()
+    {
+        if (_bibleTranslationPicker is null) return;
+        var current = _currentBibleId;
+        _updating = true;
+        _bibleTranslationPicker.BeginUpdate();
+        _bibleTranslationPicker.Items.Clear();
+        foreach (var bible in _bibles.OrderBy(item => item.Name)) _bibleTranslationPicker.Items.Add(bible);
+        _bibleTranslationPicker.SelectedItem = current is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
+        _bibleTranslationPicker.EndUpdate();
+        _updating = false;
+        if (_bibleTranslationPicker.SelectedItem is not BibleTranslation && _bibles.Count > 0) LoadBible(_bibles.OrderBy(item => item.Name).First());
+    }
+
+    private void RefreshBibleBooks()
+    {
+        if (_bibleBookList is null) return;
+        var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
+        _updating = true;
+        _bibleBookList.BeginUpdate();
+        _bibleBookList.Items.Clear();
+        if (bible is not null)
+        {
+            var available = bible.Verses.Select(item => item.Book).Distinct(StringComparer.OrdinalIgnoreCase).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var book in CanonicalBookOrder.Where(available.Contains)) _bibleBookList.Items.Add(book);
+            foreach (var book in available.Where(book => !CanonicalBookOrder.Contains(book, StringComparer.OrdinalIgnoreCase)).OrderBy(book => book)) _bibleBookList.Items.Add(book);
+            if (_bibleBookList.Items.Count > 0) _bibleBookList.SelectedIndex = 0;
+        }
+        _bibleBookList.EndUpdate();
+        _updating = false;
+        RefreshBibleChapters();
+    }
+
+    private void RefreshBibleChapters()
+    {
+        if (_bibleChapterList is null) return;
+        var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
+        var book = _bibleBookList?.SelectedItem as string;
+        _updating = true;
+        _bibleChapterList.BeginUpdate();
+        _bibleChapterList.Items.Clear();
+        if (bible is not null && !string.IsNullOrWhiteSpace(book))
+        {
+            foreach (var chapter in bible.Verses.Where(item => item.Book == book).Select(item => item.Chapter).Distinct().OrderBy(item => item)) _bibleChapterList.Items.Add(chapter);
+            if (_bibleChapterList.Items.Count > 0) _bibleChapterList.SelectedIndex = 0;
+        }
+        _bibleChapterList.EndUpdate();
+        _updating = false;
+        RefreshBibleVerses();
+    }
+
+    private void RefreshBibleAgenda()
+    {
+        if (_bibleAgendaList is null) return;
+        _updating = true;
+        _bibleAgendaList.BeginUpdate();
+        _bibleAgendaList.Items.Clear();
+        foreach (var item in _agenda) _bibleAgendaList.Items.Add(item);
+        _bibleAgendaList.EndUpdate();
+        _updating = false;
+    }
+
+    private void AddSelectedBibleVerseToAgenda()
+    {
+        if (_currentBibleId is not Guid id || _bibles.FirstOrDefault(item => item.Id == id) is not BibleTranslation bible) return;
+        var verses = _bibleVerseList.SelectedItems.Cast<BibleVerse>().OrderBy(item => item.Book).ThenBy(item => item.Chapter).ThenBy(item => item.Verse).ToList();
+        if (verses.Count == 0) return;
+        var first = verses[0];
+        var last = verses[^1];
+        var title = verses.Count == 1
+            ? $"{first.Reference} ({bible.Name})"
+            : first.Book == last.Book && first.Chapter == last.Chapter
+                ? $"{first.Book} {first.Chapter}:{first.Verse}-{last.Verse} ({bible.Name})"
+                : $"{first.Reference} - {last.Reference} ({bible.Name})";
+        _agenda.Add(new AgendaItem
+        {
+            Title = title,
+            LyricsSnapshot = string.Join(Environment.NewLine + Environment.NewLine, verses.Select(verse => $"{verse.Text}{Environment.NewLine}{verse.Reference}"))
+        });
+        Persist();
+        RefreshAgenda();
+        RefreshBibleAgenda();
+        if (_bibleAgendaList is not null) _bibleAgendaList.SelectedIndex = _agenda.Count - 1;
     }
 
     private void SaveBibleVerse()
@@ -232,7 +394,7 @@ public partial class Form1
         bible.Name = name;
         Persist();
         RefreshBibleList();
-        _bibleList.SelectedItem = bible;
+        if (_bibleList is not null) _bibleList.SelectedItem = bible;
     }
 
     private void LoadBibleVerse(BibleVerse verse)
@@ -241,10 +403,10 @@ public partial class Form1
         if (bible is null) return;
         _currentBibleVerseId = verse.Id;
         _updating = true;
-        _bibleBookBox.Text = verse.Book;
-        _bibleChapter.Value = verse.Chapter;
-        _bibleVerseNumber.Value = verse.Verse;
-        _bibleVerseText.Text = verse.Text;
+        if (_bibleBookBox is not null) _bibleBookBox.Text = verse.Book;
+        if (_bibleChapter is not null) _bibleChapter.Value = verse.Chapter;
+        if (_bibleVerseNumber is not null) _bibleVerseNumber.Value = verse.Verse;
+        if (_bibleVerseText is not null) _bibleVerseText.Text = verse.Text;
         _updating = false;
         ShowBibleVerse(bible, verse);
     }
@@ -284,7 +446,8 @@ public partial class Form1
             _bibles.Add(bible);
             Persist();
             RefreshBibleList();
-            _bibleList.SelectedItem = bible;
+            RefreshBibleTranslationPicker();
+            if (_bibleList is not null) _bibleList.SelectedItem = bible;
             LoadBible(bible);
         }
         catch (Exception exception)
@@ -296,16 +459,29 @@ public partial class Form1
     private void ShowSelectedBibleVerse()
     {
         var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
-        var verse = _bibleVerseList?.SelectedItem as BibleVerse;
-        if (bible is not null && verse is not null) ShowBibleVerse(bible, verse);
+        if (bible is not null) PreviewSelectedBibleVerses();
+    }
+
+    private void PreviewSelectedBibleVerses()
+    {
+        var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
+        if (bible is null || _bibleVerseList is null) return;
+        var verses = _bibleVerseList.SelectedItems.Cast<BibleVerse>().OrderBy(item => item.Book).ThenBy(item => item.Chapter).ThenBy(item => item.Verse).ToList();
+        if (verses.Count == 0) return;
+        _currentBibleVerseId = verses[0].Id;
+        ShowBibleVerses(bible, verses);
     }
 
     private void ShowBibleVerse(BibleTranslation bible, BibleVerse verse)
+        => ShowBibleVerses(bible, [verse]);
+
+    private void ShowBibleVerses(BibleTranslation bible, IEnumerable<BibleVerse> verses)
     {
         _slides.Clear();
-        _slides.Add($"{verse.Text}{Environment.NewLine}{Environment.NewLine}{verse.Reference} ({bible.Name})");
+        foreach (var verse in verses)
+            _slides.Add($"{verse.Text}{Environment.NewLine}{Environment.NewLine}{verse.Reference} ({bible.Name})");
         _verseSlideIndexes.Clear();
-        _verseSlideIndexes.Add(0);
+        for (var index = 0; index < _slides.Count; index++) _verseSlideIndexes.Add(index);
         _currentSlide = 0;
         RefreshSlides();
     }

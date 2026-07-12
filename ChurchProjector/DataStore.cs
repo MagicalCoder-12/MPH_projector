@@ -67,7 +67,7 @@ public sealed class BibleVerse
     public int Verse { get; set; } = 1;
     public string Text { get; set; } = "";
     public string Reference => $"{Book} {Chapter}:{Verse}";
-    public override string ToString() => $"{Reference}  {Text}";
+    public override string ToString() => $"{Verse}    {Text}";
 }
 
 public sealed class LocalDataStore

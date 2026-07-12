@@ -50,13 +50,16 @@ public partial class Form1
 
     private void RefreshAgenda()
     {
-        if (_agendaList is null) return;
-        _updating = true;
-        _agendaList.BeginUpdate();
-        _agendaList.Items.Clear();
-        foreach (var item in _agenda) _agendaList.Items.Add(item);
-        _agendaList.EndUpdate();
-        _updating = false;
+        if (_agendaList is not null)
+        {
+            _updating = true;
+            _agendaList.BeginUpdate();
+            _agendaList.Items.Clear();
+            foreach (var item in _agenda) _agendaList.Items.Add(item);
+            _agendaList.EndUpdate();
+            _updating = false;
+        }
+        RefreshBibleAgenda();
     }
 
     private void LoadAgendaItem()

@@ -3,9 +3,11 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
+using System.Windows.Interop;
 using DrawingColor = System.Drawing.Color;
 using FormsScreen = System.Windows.Forms.Screen;
 using MediaColor = System.Windows.Media.Color;
+using System.Runtime.InteropServices;
 
 namespace ChurchProjector;
 
@@ -31,6 +33,9 @@ public sealed class VideoProjectorWindow : Window
         Top = screen.Bounds.Top;
         Width = screen.Bounds.Width;
         Height = screen.Bounds.Height;
+        Loaded += (_, _) => FitToScreen(screen);
+        DpiChanged += (_, _) => FitToScreen(screen);
+        SourceInitialized += (_, _) => FitToScreen(screen);
 
         _root = new Grid { Background = System.Windows.Media.Brushes.Black };
         _canvas = new Grid { HorizontalAlignment = System.Windows.HorizontalAlignment.Center, VerticalAlignment = System.Windows.VerticalAlignment.Center };
@@ -119,4 +124,19 @@ public sealed class VideoProjectorWindow : Window
     }
 
     private static MediaColor ToMediaColor(DrawingColor color) => MediaColor.FromArgb(color.A, color.R, color.G, color.B);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
+
+    private const uint SwpNoActivate = 0x0010;
+    private const uint SwpShowWindow = 0x0040;
+    private static readonly IntPtr HwndTopMost = new(-1);
+
+    private void FitToScreen(FormsScreen screen)
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero) return;
+        var bounds = screen.Bounds;
+        SetWindowPos(handle, HwndTopMost, bounds.X, bounds.Y, bounds.Width, bounds.Height, SwpNoActivate | SwpShowWindow);
+    }
 }

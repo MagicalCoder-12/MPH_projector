@@ -74,10 +74,19 @@ public partial class Form1
 
     private Control BuildHeader()
     {
-        var header = new Panel { Dock = DockStyle.Top, Height = 46, BackColor = _brand };
-        header.Controls.Add(new Label { Text = "✦", Font = new Font("Segoe UI Symbol", 22F, FontStyle.Bold), ForeColor = Color.FromArgb(255, 210, 64), Location = new Point(14, 7), AutoSize = true });
-        header.Controls.Add(new Label { Text = "MPH SONGS", ForeColor = Color.White, Font = new Font("Segoe UI", 12F, FontStyle.Bold), Location = new Point(50, 12), AutoSize = true });
-        header.Controls.Add(new Label { Text = "Sunday service · Ready", ForeColor = Color.FromArgb(213, 235, 251), Location = new Point(232, 15), AutoSize = true });
+        var header = new Panel { Dock = DockStyle.Top, Height = 48, BackColor = _brand };
+        var brand = new TableLayoutPanel { Dock = DockStyle.Left, AutoSize = true, Height = 48, ColumnCount = 3, RowCount = 1, BackColor = _brand, Padding = new Padding(14, 0, 0, 0) };
+        brand.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        brand.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        brand.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        brand.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        var star = new Label { Text = "✦", Font = new Font("Segoe UI Symbol", 18F, FontStyle.Bold), ForeColor = Color.FromArgb(255, 210, 64), AutoSize = true, Anchor = AnchorStyles.None };
+        var title = new Label { Text = "MPH SONGS", ForeColor = Color.White, Font = new Font("Segoe UI", 13F, FontStyle.Bold), AutoSize = true, Anchor = AnchorStyles.None, Margin = new Padding(10, 0, 14, 0) };
+        var subtitle = new Label { Text = "Sunday service · Ready", ForeColor = Color.FromArgb(213, 235, 251), AutoSize = true, Anchor = AnchorStyles.None, Margin = new Padding(0, 2, 0, 0) };
+        brand.Controls.Add(star, 0, 0);
+        brand.Controls.Add(title, 1, 0);
+        brand.Controls.Add(subtitle, 2, 0);
+        header.Controls.Add(brand);
         var projector = Button("▣  Open projector", Color.FromArgb(11, 77, 132), Color.White, 154, 31);
         projector.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         projector.Click += (_, _) => ToggleProjector();
