@@ -52,6 +52,14 @@ public partial class Form1 : Form
     private Guid? _currentBibleVerseId;
     private bool _updating;
 
+    private StatusStrip _statusBar = null!;
+    private ToolStripStatusLabel _statusTab = null!;
+    private ToolStripStatusLabel _statusSlide = null!;
+    private ToolStripStatusLabel _statusProjector = null!;
+    private ToolStripStatusLabel _statusClock = null!;
+    private Button _projectorButton = null!;
+    private readonly System.Windows.Forms.Timer _clockTimer = new();
+
     private readonly Color _brand = Color.FromArgb(22, 113, 180);
     private readonly Color _darkBrand = Color.FromArgb(14, 83, 143);
     private readonly Color _panelBorder = Color.FromArgb(210, 218, 227);
@@ -73,6 +81,11 @@ public partial class Form1 : Form
         SyncConfiguredBackgrounds();
         RestoreBackgroundPreferences();
         BuildInterface();
+        UpdateBoldButton();
+        UpdateProjectorStatus();
+        _clockTimer.Interval = 1000;
+        _clockTimer.Tick += (_, _) => { if (_statusClock is not null) _statusClock.Text = DateTime.Now.ToShortTimeString(); };
+        _clockTimer.Start();
         RefreshAgenda();
         if (_library.Count > 0) LoadSong(_library[0]);
     }
@@ -190,6 +203,7 @@ public partial class Form1 : Form
             _biblePreview.Invalidate();
         }
         if (_slideStatus is not null) _slideStatus.Text = $"Slide {_currentSlide + 1} of {_slides.Count} - {_theme.AspectRatio} - {_theme.FontFamily}";
+        if (_statusSlide is not null) _statusSlide.Text = $"Slide {_currentSlide + 1} of {_slides.Count}";
         _projector?.SetSlide(_slides[_currentSlide], _theme);
         _videoProjector?.SetSlide(_slides[_currentSlide], _theme);
     }
@@ -207,6 +221,19 @@ public partial class Form1 : Form
     {
         _boldButton.BackColor = _theme.Bold ? _brand : Color.FromArgb(232, 237, 244);
         _boldButton.ForeColor = _theme.Bold ? Color.White : Color.FromArgb(31, 48, 68);
+    }
+
+    private void UpdateProjectorStatus()
+    {
+        if (_statusProjector is null) return;
+        var live = (_projector is { IsDisposed: false }) || _videoProjector is not null;
+        _statusProjector.Text = live ? "● Projector: live" : "Projector: off";
+        _statusProjector.ForeColor = live ? Color.FromArgb(150, 230, 180) : Color.White;
+        if (_projectorButton is not null)
+        {
+            _projectorButton.Text = live ? "▣  Close projector" : "▣  Open projector";
+            _projectorButton.BackColor = live ? Color.FromArgb(35, 157, 87) : Color.FromArgb(11, 77, 132);
+        }
     }
 
     private void ChooseTextColor()
@@ -239,28 +266,32 @@ public partial class Form1 : Form
         {
             _projector.Close();
             _projector = null;
+            UpdateProjectorStatus();
             return;
         }
         if (_videoProjector is not null)
         {
             _videoProjector.Close();
             _videoProjector = null;
+            UpdateProjectorStatus();
             return;
         }
         var screen = Screen.AllScreens.Length > 1 ? Screen.AllScreens[1] : Screen.PrimaryScreen!;
         if (!string.IsNullOrWhiteSpace(_theme.BackgroundVideoPath) && File.Exists(_theme.BackgroundVideoPath))
         {
             _videoProjector = new VideoProjectorWindow(screen);
-            _videoProjector.Closed += (_, _) => _videoProjector = null;
+            _videoProjector.Closed += (_, _) => { _videoProjector = null; UpdateProjectorStatus(); };
             _videoProjector.Show();
             RefreshSlides();
+            UpdateProjectorStatus();
             return;
         }
         _projector = new ProjectorForm();
-        _projector.FormClosed += (_, _) => _projector = null;
+        _projector.FormClosed += (_, _) => { _projector = null; UpdateProjectorStatus(); };
         _projector.TargetScreen = screen;
         _projector.Show();
         RefreshSlides();
+        UpdateProjectorStatus();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -287,6 +318,8 @@ public partial class Form1 : Form
     {
         if (disposing)
         {
+            _clockTimer.Stop();
+            _clockTimer.Dispose();
             _theme.BackgroundImage?.Dispose();
             _videoProjector?.Close();
         }

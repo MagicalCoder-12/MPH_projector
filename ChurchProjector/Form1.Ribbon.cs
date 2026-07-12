@@ -52,11 +52,32 @@ public partial class Form1
         bibleTab.Click += (_, _) => SwitchMode(bibleRibbon, _bibleWorkspace, bibleTab, textTab, backgroundTab, helpTab);
         helpTab.Click += (_, _) => SwitchMode(helpRibbon, _helpWorkspace, helpTab, textTab, backgroundTab, bibleTab);
 
+        var statusBar = BuildStatusBar();
         Controls.Add(workspaceHost);
         Controls.Add(ribbonHost);
         Controls.Add(tabBar);
         Controls.Add(header);
+        Controls.Add(statusBar);
         ResumeLayout();
+    }
+
+    private Control BuildStatusBar()
+    {
+        _statusBar = new StatusStrip
+        {
+            Dock = DockStyle.Bottom,
+            BackColor = _darkBrand,
+            ForeColor = Color.White,
+            Padding = new Padding(2, 1, 2, 1),
+            ShowItemToolTips = false
+        };
+        var border = ToolStripStatusLabelBorderSides.Right;
+        _statusTab = new ToolStripStatusLabel("Text") { ForeColor = Color.White, BorderSides = border };
+        _statusSlide = new ToolStripStatusLabel("Slide 1 of 1") { ForeColor = Color.White, BorderSides = border };
+        _statusProjector = new ToolStripStatusLabel("Projector: off") { ForeColor = Color.White, BorderSides = border };
+        _statusClock = new ToolStripStatusLabel(DateTime.Now.ToShortTimeString()) { ForeColor = Color.White, Spring = true, TextAlign = ContentAlignment.MiddleRight };
+        _statusBar.Items.AddRange([_statusTab, _statusSlide, _statusProjector, _statusClock]);
+        return _statusBar;
     }
 
     private void SwitchMode(Control ribbon, Control workspace, Button active, params Button[] inactive)
@@ -70,6 +91,8 @@ public partial class Form1
             button.BackColor = _darkBrand;
             button.ForeColor = Color.White;
         }
+        if (_statusTab is not null)
+            _statusTab.Text = "Tab: " + active.Text.Replace("▧", "").Replace("A", "").Trim();
     }
 
     private Control BuildHeader()
@@ -87,7 +110,8 @@ public partial class Form1
         brand.Controls.Add(title, 1, 0);
         brand.Controls.Add(subtitle, 2, 0);
         header.Controls.Add(brand);
-        var projector = Button("▣  Open projector", Color.FromArgb(11, 77, 132), Color.White, 154, 31);
+        var projector = Button("▣  Open projector", Color.FromArgb(11, 77, 132), Color.White, 162, 31);
+        _projectorButton = projector;
         projector.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         projector.Click += (_, _) => ToggleProjector();
         header.Resize += (_, _) => projector.Location = new Point(header.ClientSize.Width - projector.Width - 16, 8);
