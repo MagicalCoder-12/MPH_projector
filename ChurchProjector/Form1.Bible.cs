@@ -36,23 +36,26 @@ public partial class Form1
 
     private Control BuildBibleWorkspace()
     {
-        var workspace = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, Padding = new Padding(10, 10, 10, 12), BackColor = Color.FromArgb(241, 244, 247) };
-        workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28));
-        workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 44));
-        workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28));
-        workspace.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        workspace.Controls.Add(BuildBibleNavigatorPanel(), 0, 0);
-        workspace.Controls.Add(BuildBibleVersesPanel(), 1, 0);
-        workspace.Controls.Add(BuildBiblePreviewPanel(), 2, 0);
+        var outer = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10, 10, 10, 12), BackColor = Color.FromArgb(241, 244, 247) };
+        var navSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
+        navSplit.Panel1.Controls.Add(BuildBibleNavigatorPanel());
+        var right = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
+        right.Panel1.Controls.Add(BuildBibleVersesPanel());
+        right.Panel2.Controls.Add(BuildBiblePreviewPanel());
+        navSplit.Panel2.Controls.Add(right);
+        LayoutSplit(navSplit, outer, 0.28f);
+        LayoutSplit(right, right, 44f / 72f);
+        outer.Controls.Add(navSplit);
         RefreshBibleVerses();
-        return workspace;
+        return outer;
     }
 
     private Control BuildBibleNavigatorPanel()
     {
         var outer = Section("Bible", "Choose a translation, book, and chapter");
         var content = (TableLayoutPanel)outer.Tag!;
-        content.RowCount = 3;
+        content.RowCount = 4;
+        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -60,6 +63,14 @@ public partial class Form1
         _bibleTranslationPicker = new ComboBox { Dock = DockStyle.Top, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 0, 0, 8) };
         _bibleTranslationPicker.SelectedIndexChanged += (_, _) => { if (!_updating && _bibleTranslationPicker.SelectedItem is BibleTranslation bible) LoadBible(bible); };
         content.Controls.Add(_bibleTranslationPicker, 0, 1);
+
+        var reference = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 34, WrapContents = false, Margin = new Padding(0, 0, 0, 8) };
+        _bibleReferenceBox = new TextBox { Width = 130, PlaceholderText = "e.g. John 3:16", Margin = new Padding(0, 4, 6, 0) };
+        _bibleReferenceBox.KeyDown += (_, e) => { if (e.KeyCode == Keys.Enter) GoToReference(); };
+        var go = Button("Go", _brand, Color.White, 48, 30);
+        go.Click += (_, _) => GoToReference();
+        reference.Controls.AddRange([_bibleReferenceBox, go]);
+        content.Controls.Add(reference, 0, 2);
 
         var navigation = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2 };
         navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 62));
@@ -74,7 +85,7 @@ public partial class Form1
         _bibleChapterList.SelectedIndexChanged += (_, _) => { if (!_updating) RefreshBibleVerses(); };
         navigation.Controls.Add(_bibleBookList, 0, 1);
         navigation.Controls.Add(_bibleChapterList, 1, 1);
-        content.Controls.Add(navigation, 0, 2);
+        content.Controls.Add(navigation, 0, 3);
         RefreshBibleTranslationPicker();
         return outer;
     }
@@ -285,6 +296,58 @@ public partial class Form1
         _bibleBookList.EndUpdate();
         _updating = false;
         RefreshBibleChapters();
+    }
+
+    private void GoToReference()
+    {
+        if (_bibleReferenceBox is null) return;
+        var input = _bibleReferenceBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(input)) return;
+        var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
+        if (bible is null)
+        {
+            MessageBox.Show(this, "Choose or import a Bible translation first.", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        var match = System.Text.RegularExpressions.Regex.Match(input, @"^(?<book>.+?)\s+(\d+)\s*:\s*(\d+)(?:\s*-\s*(\d+))?$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (!match.Success)
+        {
+            MessageBox.Show(this, "Enter a reference like  John 3:16  or  Psalm 23:1-6", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        var book = FindBook(bible, match.Groups["book"].Value.Trim());
+        if (book is null)
+        {
+            MessageBox.Show(this, $"No book named '{match.Groups["book"].Value.Trim()}' was found in this translation.", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        var chapter = int.Parse(match.Groups[2].Value);
+        var startVerse = int.Parse(match.Groups[3].Value);
+        var endVerse = match.Groups[4].Success ? int.Parse(match.Groups[4].Value) : startVerse;
+
+        _updating = true;
+        _bibleBookList.SelectedItem = book;
+        RefreshBibleChapters();
+        foreach (int item in _bibleChapterList.Items)
+            if (item == chapter) { _bibleChapterList.SelectedItem = item; break; }
+        RefreshBibleVerses();
+        _bibleVerseList.BeginUpdate();
+        _bibleVerseList.ClearSelected();
+        for (var index = 0; index < _bibleVerseList.Items.Count; index++)
+        {
+            if (_bibleVerseList.Items[index] is BibleVerse verse && verse.Verse >= startVerse && verse.Verse <= endVerse)
+                _bibleVerseList.SetSelected(index, true);
+        }
+        _bibleVerseList.EndUpdate();
+        _updating = false;
+        PreviewSelectedBibleVerses();
+    }
+
+    private static string? FindBook(BibleTranslation bible, string input)
+    {
+        var normalised = new string(input.Where(c => !char.IsWhiteSpace(c)).ToArray()).ToLowerInvariant();
+        return bible.Verses.Select(item => item.Book).Distinct(StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(book => new string(book.Where(c => !char.IsWhiteSpace(c)).ToArray()).ToLowerInvariant() == normalised);
     }
 
     private void RefreshBibleChapters()

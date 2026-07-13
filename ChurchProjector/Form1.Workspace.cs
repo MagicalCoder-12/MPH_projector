@@ -4,15 +4,28 @@ public partial class Form1
 {
     private Control BuildWorkspace()
     {
-        var workspace = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, Padding = new Padding(10, 10, 10, 12), BackColor = Color.FromArgb(241, 244, 247) };
-        workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32));
-        workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36));
-        workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32));
-        workspace.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        workspace.Controls.Add(BuildAgendaPanel(), 0, 0);
-        workspace.Controls.Add(BuildEditorPanel(), 1, 0);
-        workspace.Controls.Add(BuildPreviewPanel(), 2, 0);
-        return workspace;
+        var outer = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10, 10, 10, 12), BackColor = Color.FromArgb(241, 244, 247) };
+        var agendaSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
+        agendaSplit.Panel1.Controls.Add(BuildAgendaPanel());
+        var right = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
+        right.Panel1.Controls.Add(BuildEditorPanel());
+        right.Panel2.Controls.Add(BuildPreviewPanel());
+        agendaSplit.Panel2.Controls.Add(right);
+        LayoutSplit(agendaSplit, outer, 0.32f);
+        LayoutSplit(right, right, 36f / 68f);
+        outer.Controls.Add(agendaSplit);
+        return outer;
+    }
+
+    private static void LayoutSplit(SplitContainer split, Control measured, float fraction)
+    {
+        var initialised = false;
+        measured.Resize += (_, _) =>
+        {
+            if (initialised || measured.ClientSize.Width < 80) return;
+            initialised = true;
+            split.SplitterDistance = Math.Max(split.Panel1MinSize, (int)(measured.ClientSize.Width * fraction));
+        };
     }
 
     private Control BuildAgendaPanel()

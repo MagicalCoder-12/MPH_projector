@@ -20,10 +20,20 @@ public sealed class PresentationTheme
     public string AspectRatio { get; set; } = "16:9";
 }
 
+public enum StageMode
+{
+    Slide,
+    Background,
+    Black,
+    Logo
+}
+
 public sealed class SlideCanvas : Control
 {
     public PresentationTheme? Theme { get; set; }
     public string SlideText { get; set; } = "";
+    public StageMode Stage { get; set; } = StageMode.Slide;
+    public Image? LogoImage { get; set; }
 
     public SlideCanvas()
     {
@@ -42,12 +52,29 @@ public sealed class SlideCanvas : Control
         var canvas = FitAspect(ClientRectangle, theme.AspectRatio);
         using var surround = new SolidBrush(Color.FromArgb(25, 31, 40));
         e.Graphics.FillRectangle(surround, ClientRectangle);
-        DrawSlide(e.Graphics, canvas, SlideText, theme);
+
+        if (Stage == StageMode.Black)
+        {
+            e.Graphics.FillRectangle(Brushes.Black, canvas);
+            return;
+        }
+        DrawBackground(e.Graphics, canvas, theme);
+        if (Stage == StageMode.Logo && LogoImage is not null)
+        {
+            DrawLogo(e.Graphics, canvas, LogoImage);
+            return;
+        }
+        if (Stage == StageMode.Slide) DrawText(e.Graphics, canvas, SlideText, theme);
     }
 
     public static void DrawSlide(Graphics graphics, Rectangle canvas, string text, PresentationTheme theme)
     {
         DrawBackground(graphics, canvas, theme);
+        DrawText(graphics, canvas, text, theme);
+    }
+
+    private static void DrawText(Graphics graphics, Rectangle canvas, string text, PresentationTheme theme)
+    {
         using var shade = new SolidBrush(Color.FromArgb(35, Color.Black));
         graphics.FillRectangle(shade, canvas);
 
@@ -62,6 +89,18 @@ public sealed class SlideCanvas : Control
         graphics.DrawString(text, font, shadow, shadowArea, format);
         using var brush = new SolidBrush(theme.TextColor);
         graphics.DrawString(text, font, brush, textArea, format);
+    }
+
+    private static void DrawLogo(Graphics graphics, Rectangle canvas, Image logo)
+    {
+        var maxWidth = canvas.Width * 0.7F;
+        var maxHeight = canvas.Height * 0.7F;
+        var scale = Math.Min(maxWidth / logo.Width, Math.Min(maxHeight / logo.Height, 1F));
+        var width = (int)(logo.Width * scale);
+        var height = (int)(logo.Height * scale);
+        var x = canvas.X + (canvas.Width - width) / 2;
+        var y = canvas.Y + (canvas.Height - height) / 2;
+        graphics.DrawImage(logo, x, y, width, height);
     }
 
     private static void DrawBackground(Graphics graphics, Rectangle canvas, PresentationTheme theme)

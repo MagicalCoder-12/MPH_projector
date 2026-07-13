@@ -11,7 +11,13 @@ public partial class Form1
         Add(keyboard, Hint("Arrows or Page Up/Page Down: slides.  1-9: jump to song verses.  F5: projector.  Esc: close projector."));
         var storage = RibbonGroup("Library", 275);
         Add(storage, Hint("Songs, agenda items, Bible translations, and verses are saved automatically on this computer."));
-        ribbon.Controls.AddRange([start, keyboard, storage]);
+        var backup = RibbonGroup("Backup", 250);
+        var export = Button("Export", _brand, Color.White, 90, 34);
+        export.Click += (_, _) => ExportLibrary();
+        var import = Button("Import", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 90, 34);
+        import.Click += (_, _) => ImportLibrary();
+        Add(backup, export, import, Hint("Export a .mphbundle to move your whole library to another computer."));
+        ribbon.Controls.AddRange([start, keyboard, storage, backup]);
         return ribbon;
     }
 
@@ -95,13 +101,25 @@ BIBLE TAB
 - Enter a Book, Chapter, Verse, and verse text, then choose Save verse.
 - Use Ctrl-click to select separate verses, or click and drag over the verse list to select a continuous range.
 - Selected verses become consecutive live slides. Add verse adds the selected passage to the service agenda.
+- Jump to a reference with the box at the top: type e.g. "John 3:16" or "Psalm 23:1-6" and press Go or Enter.
 - Drag the separators between the agenda, books, verses, and preview panels to give each area more room.
 - Import accepts a JSON translation file. See the project README for its required format.
+
+STAGE CONTROLS
+- Black (F2): send a solid black screen to the projector between songs.
+- Hide text (F3): keep the current background but remove the words.
+- Logo (F4): show a church logo over the background. Set the logo on the Background tab (Set logo).
+- These work whether or not the projector is already open; the status bar shows the current stage.
+- Press the same stage key again, or change slides, to return to the live text.
 
 PROJECTOR
 - F5 opens or closes the borderless projector window.
 - MPH Songs uses the second monitor when one is connected; otherwise it uses the primary screen.
 - Press Esc in the projector window to close it.
+
+BACKUP
+- On the Help tab, Export bundles the whole library (songs, Bibles, agenda, backgrounds, and logo) into a .mphbundle file.
+- Import restores a .mphbundle on another computer, replacing the current library.
 
 SAVED DATA
 Songs, agenda entries, and Bible records are saved to the local MPH Songs library on this computer. Back up this file before moving to another computer.

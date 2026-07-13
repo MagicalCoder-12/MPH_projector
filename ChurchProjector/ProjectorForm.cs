@@ -7,6 +7,10 @@ public sealed class ProjectorForm : Form
     private readonly SlideCanvas _canvas;
     private readonly Label _exitHint;
     private Screen? _targetScreen;
+    private string _text = "";
+    private PresentationTheme? _theme;
+    private StageMode _stage = StageMode.Slide;
+    private Image? _logo;
 
     [DllImport("user32.dll")]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
@@ -62,8 +66,25 @@ public sealed class ProjectorForm : Form
 
     public void SetSlide(string text, PresentationTheme theme)
     {
-        _canvas.Theme = theme;
-        _canvas.SlideText = text;
+        _text = text;
+        _theme = theme;
+        Render();
+    }
+
+    public void SetStage(StageMode stage, Image? logo)
+    {
+        _stage = stage;
+        _logo = logo;
+        Render();
+    }
+
+    private void Render()
+    {
+        if (_theme is null) return;
+        _canvas.Stage = _stage;
+        _canvas.LogoImage = _logo;
+        _canvas.Theme = _theme;
+        _canvas.SlideText = _text;
         _canvas.Invalidate();
     }
 }

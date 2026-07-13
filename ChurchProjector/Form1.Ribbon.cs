@@ -110,12 +110,17 @@ public partial class Form1
         brand.Controls.Add(title, 1, 0);
         brand.Controls.Add(subtitle, 2, 0);
         header.Controls.Add(brand);
-        var projector = Button("▣  Open projector", Color.FromArgb(11, 77, 132), Color.White, 162, 31);
-        _projectorButton = projector;
-        projector.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        projector.Click += (_, _) => ToggleProjector();
-        header.Resize += (_, _) => projector.Location = new Point(header.ClientSize.Width - projector.Width - 16, 8);
-        header.Controls.Add(projector);
+        var actions = new FlowLayoutPanel { Dock = DockStyle.Right, FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Height = 48, Padding = new Padding(0, 8, 14, 0), WrapContents = false, BackColor = _brand };
+        _blackButton = Button("◼  Black", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 84, 31);
+        _blackButton.Click += (_, _) => SetStageMode(StageMode.Black);
+        _hideTextButton = Button("▦  Hide text", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 104, 31);
+        _hideTextButton.Click += (_, _) => SetStageMode(StageMode.Background);
+        _logoButton = Button("✦  Logo", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 84, 31);
+        _logoButton.Click += (_, _) => SetStageMode(StageMode.Logo);
+        _projectorButton = Button("▣  Open projector", Color.FromArgb(11, 77, 132), Color.White, 162, 31);
+        _projectorButton.Click += (_, _) => ToggleProjector();
+        actions.Controls.AddRange([_blackButton, _hideTextButton, _logoButton, _projectorButton]);
+        header.Controls.Add(actions);
         return header;
     }
 
@@ -184,7 +189,9 @@ public partial class Form1
         _videoLoop.CheckedChanged += (_, _) => { _theme.VideoLoop = _videoLoop.Checked; SaveBackgroundPreferences(); RefreshSlides(); };
         var clear = Button("Clear", Color.White, Color.FromArgb(31, 48, 68), 55, 30);
         clear.Click += (_, _) => { ClearBackgroundSelection(); SaveBackgroundPreferences(); RefreshSlides(); };
-        Add(media, choose, video, _backgroundPicker, _videoLoop, clear, Hint("Imported files are kept in the MPH Songs background library."));
+        var logo = Button("Set logo", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 80, 34);
+        logo.Click += (_, _) => SetLogoPath();
+        Add(media, choose, video, logo, _backgroundPicker, _videoLoop, clear, Hint("Imported files are kept in the MPH Songs background library. Set a logo to use the Logo stage button."));
         RefreshBackgroundPicker();
 
         var brightness = RibbonGroup("Brightness", 180);

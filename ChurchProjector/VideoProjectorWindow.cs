@@ -4,6 +4,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Interop;
+using System.Windows.Media.Imaging;
+using DrawingImage = System.Drawing.Image;
+using DrawingBitmap = System.Drawing.Bitmap;
 using DrawingColor = System.Drawing.Color;
 using FormsScreen = System.Windows.Forms.Screen;
 using MediaColor = System.Windows.Media.Color;
@@ -18,9 +21,12 @@ public sealed class VideoProjectorWindow : Window
     private readonly MediaElement _video;
     private readonly Border _shade;
     private readonly TextBlock _lyrics;
+    private readonly System.Windows.Controls.Image _logoControl;
     private bool _loop;
     private string? _videoPath;
     private string _aspectRatio = "16:9";
+    private StageMode _stage = StageMode.Slide;
+    private DrawingImage? _logoImage;
 
     public VideoProjectorWindow(FormsScreen screen)
     {
@@ -54,6 +60,15 @@ public sealed class VideoProjectorWindow : Window
         _canvas.Children.Add(_video);
         _canvas.Children.Add(_shade);
         _canvas.Children.Add(_lyrics);
+        _logoControl = new System.Windows.Controls.Image
+        {
+            Stretch = Stretch.Uniform,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+            VerticalAlignment = System.Windows.VerticalAlignment.Center,
+            Margin = new Thickness(80),
+            Visibility = Visibility.Hidden
+        };
+        _canvas.Children.Add(_logoControl);
         _root.Children.Add(_canvas);
         Content = _root;
 
@@ -92,6 +107,7 @@ public sealed class VideoProjectorWindow : Window
         };
         _shade.Background = new SolidColorBrush(MediaColor.FromArgb((byte)Math.Clamp(35 - theme.Brightness, 0, 120), 0, 0, 0));
         UpdateCanvasSize();
+        ApplyStage();
 
         if (string.IsNullOrWhiteSpace(theme.BackgroundVideoPath) || !File.Exists(theme.BackgroundVideoPath)) return;
         if (!string.Equals(_videoPath, theme.BackgroundVideoPath, StringComparison.OrdinalIgnoreCase))
@@ -100,6 +116,41 @@ public sealed class VideoProjectorWindow : Window
             _video.Source = new Uri(_videoPath, UriKind.Absolute);
         }
         _video.Play();
+    }
+
+    public void SetStage(StageMode stage, DrawingImage? logo)
+    {
+        _stage = stage;
+        _logoImage = logo;
+        ApplyStage();
+    }
+
+    private void ApplyStage()
+    {
+        _lyrics.Visibility = _stage == StageMode.Slide ? Visibility.Visible : Visibility.Hidden;
+        _video.Visibility = _stage == StageMode.Black ? Visibility.Hidden : Visibility.Visible;
+        if (_stage == StageMode.Logo && _logoImage is DrawingBitmap bitmap)
+        {
+            _logoControl.Source = ToImageSource(bitmap);
+            _logoControl.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            _logoControl.Visibility = Visibility.Hidden;
+        }
+    }
+
+    private static System.Windows.Media.ImageSource ToImageSource(DrawingBitmap bitmap)
+    {
+        var handle = bitmap.GetHbitmap();
+        try
+        {
+            return System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(handle, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+        }
+        finally
+        {
+            DeleteObject(handle);
+        }
     }
 
     private void UpdateCanvasSize()
@@ -127,6 +178,9 @@ public sealed class VideoProjectorWindow : Window
 
     [DllImport("user32.dll")]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
+
+    [DllImport("gdi32.dll")]
+    private static extern bool DeleteObject(IntPtr hObject);
 
     private const uint SwpNoActivate = 0x0010;
     private const uint SwpShowWindow = 0x0040;

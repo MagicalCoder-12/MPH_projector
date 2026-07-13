@@ -5,10 +5,10 @@ public partial class Form1 : Form
     private readonly PresentationTheme _theme = new();
     private readonly LocalDataStore _store = new();
     private readonly AppData _data;
-    private readonly List<Song> _library;
-    private readonly List<AgendaItem> _agenda;
-    private readonly List<BibleTranslation> _bibles;
-    private readonly List<BackgroundAsset> _backgrounds;
+    private List<Song> _library = [];
+    private List<AgendaItem> _agenda = [];
+    private List<BibleTranslation> _bibles = [];
+    private List<BackgroundAsset> _backgrounds = [];
     private readonly List<string> _slides = [];
     private readonly List<int> _verseSlideIndexes = [];
 
@@ -38,6 +38,7 @@ public partial class Form1 : Form
     private ListBox _bibleBookList = null!;
     private ListBox _bibleChapterList = null!;
     private ComboBox _bibleTranslationPicker = null!;
+    private TextBox _bibleReferenceBox = null!;
     private Label _bibleReferenceLabel = null!;
     private TextBox _bibleNameBox = null!;
     private TextBox _bibleBookBox = null!;
@@ -60,6 +61,12 @@ public partial class Form1 : Form
     private Button _projectorButton = null!;
     private readonly System.Windows.Forms.Timer _clockTimer = new();
 
+    private StageMode _stageMode = StageMode.Slide;
+    private Image? _logoImage;
+    private Button _blackButton = null!;
+    private Button _hideTextButton = null!;
+    private Button _logoButton = null!;
+
     private readonly Color _brand = Color.FromArgb(22, 113, 180);
     private readonly Color _darkBrand = Color.FromArgb(14, 83, 143);
     private readonly Color _panelBorder = Color.FromArgb(210, 218, 227);
@@ -80,9 +87,11 @@ public partial class Form1 : Form
         _backgrounds = _data.Backgrounds;
         SyncConfiguredBackgrounds();
         RestoreBackgroundPreferences();
+        LoadLogoImage();
         BuildInterface();
         UpdateBoldButton();
         UpdateProjectorStatus();
+        UpdateStageStatus();
         _clockTimer.Interval = 1000;
         _clockTimer.Tick += (_, _) => { if (_statusClock is not null) _statusClock.Text = DateTime.Now.ToShortTimeString(); };
         _clockTimer.Start();
@@ -236,6 +245,72 @@ public partial class Form1 : Form
         }
     }
 
+    private void SetStageMode(StageMode mode)
+    {
+        _stageMode = _stageMode == mode ? StageMode.Slide : mode;
+        if (_stageMode == StageMode.Logo && _logoImage is null)
+        {
+            SetLogoPath();
+            if (_logoImage is null) _stageMode = StageMode.Slide;
+        }
+        ApplyStageToProjectors();
+        UpdateStageStatus();
+    }
+
+    private void ApplyStageToProjectors()
+    {
+        _projector?.SetStage(_stageMode, _logoImage);
+        _videoProjector?.SetStage(_stageMode, _logoImage);
+        UpdateStageStatus();
+    }
+
+    private void UpdateStageStatus()
+    {
+        if (_blackButton is not null) SetStageButton(_blackButton, _stageMode == StageMode.Black);
+        if (_hideTextButton is not null) SetStageButton(_hideTextButton, _stageMode == StageMode.Background);
+        if (_logoButton is not null) SetStageButton(_logoButton, _stageMode == StageMode.Logo);
+        if (_statusProjector is null) return;
+        var live = (_projector is { IsDisposed: false }) || _videoProjector is not null;
+        if (!live) return;
+        var detail = _stageMode switch
+        {
+            StageMode.Black => "black screen",
+            StageMode.Background => "background only",
+            StageMode.Logo => "logo",
+            _ => "live"
+        };
+        _statusProjector.Text = $"● Projector: {detail}";
+    }
+
+    private static void SetStageButton(Button button, bool active)
+    {
+        button.BackColor = active ? Color.FromArgb(35, 157, 87) : Color.FromArgb(232, 237, 244);
+        button.ForeColor = active ? Color.White : Color.FromArgb(31, 48, 68);
+    }
+
+    private void SetLogoPath()
+    {
+        using var dialog = new OpenFileDialog { Filter = "Image files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All files|*.*", Title = "Choose church logo" };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        var path = _store.ImportLogo(dialog.FileName);
+        if (string.IsNullOrEmpty(path)) return;
+        _data.BackgroundPreferences.LogoPath = path;
+        _logoImage?.Dispose();
+        try { _logoImage = Image.FromFile(path); }
+        catch { _logoImage = null; }
+        Persist();
+    }
+
+    private void LoadLogoImage()
+    {
+        _logoImage?.Dispose();
+        _logoImage = null;
+        var path = _data.BackgroundPreferences.LogoPath;
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return;
+        try { _logoImage = Image.FromFile(path); }
+        catch { _logoImage = null; }
+    }
+
     private void ChooseTextColor()
     {
         using var dialog = new ColorDialog { Color = _theme.TextColor, FullOpen = true };
@@ -284,6 +359,7 @@ public partial class Form1 : Form
             _videoProjector.Show();
             RefreshSlides();
             UpdateProjectorStatus();
+            ApplyStageToProjectors();
             return;
         }
         _projector = new ProjectorForm();
@@ -292,6 +368,7 @@ public partial class Form1 : Form
         _projector.Show();
         RefreshSlides();
         UpdateProjectorStatus();
+        ApplyStageToProjectors();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -310,6 +387,9 @@ public partial class Form1 : Form
         }
         if (keyData is Keys.Down or Keys.PageDown or Keys.Right) { SelectSlide(_currentSlide + 1); return true; }
         if (keyData is Keys.Up or Keys.PageUp or Keys.Left) { SelectSlide(_currentSlide - 1); return true; }
+        if (keyData == Keys.F2) { SetStageMode(StageMode.Black); return true; }
+        if (keyData == Keys.F3) { SetStageMode(StageMode.Background); return true; }
+        if (keyData == Keys.F4) { SetStageMode(StageMode.Logo); return true; }
         if (keyData == Keys.F5) { ToggleProjector(); return true; }
         return base.ProcessCmdKey(ref msg, keyData);
     }

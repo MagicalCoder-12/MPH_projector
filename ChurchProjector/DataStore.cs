@@ -29,6 +29,7 @@ public sealed class BackgroundPreferences
     public int Brightness { get; set; }
     public string AspectRatio { get; set; } = "16:9";
     public bool VideoLoop { get; set; } = true;
+    public string? LogoPath { get; set; }
 }
 
 public sealed class Song
@@ -99,6 +100,20 @@ public sealed class LocalDataStore
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
         File.WriteAllText(_filePath, JsonSerializer.Serialize(data, Options));
+    }
+
+    public string Serialize(AppData data) => JsonSerializer.Serialize(data, Options);
+
+    public AppData? Deserialize(string json) => JsonSerializer.Deserialize<AppData>(json, Options);
+
+    public string ImportLogo(string sourcePath)
+    {
+        if (!File.Exists(sourcePath)) return "";
+        var directory = Path.Combine(BackgroundRoot, "logos");
+        Directory.CreateDirectory(directory);
+        var destination = Path.Combine(directory, $"{Guid.NewGuid():N}{Path.GetExtension(sourcePath)}");
+        File.Copy(sourcePath, destination, true);
+        return destination;
     }
 
     public BibleTranslation ImportBible(string path)
