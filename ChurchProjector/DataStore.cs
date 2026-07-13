@@ -29,6 +29,7 @@ public sealed class BackgroundPreferences
     public int Brightness { get; set; }
     public string AspectRatio { get; set; } = "16:9";
     public bool VideoLoop { get; set; } = true;
+    public bool AutoFit { get; set; }
     public string? LogoPath { get; set; }
 }
 

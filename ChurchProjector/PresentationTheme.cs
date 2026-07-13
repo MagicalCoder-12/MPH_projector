@@ -18,6 +18,7 @@ public sealed class PresentationTheme
     public bool VideoLoop { get; set; } = true;
     public int Brightness { get; set; }
     public string AspectRatio { get; set; } = "16:9";
+    public bool AutoFit { get; set; }
 }
 
 public enum StageMode
@@ -80,10 +81,11 @@ public sealed class SlideCanvas : Control
 
         var style = theme.Bold ? FontStyle.Bold : FontStyle.Regular;
         var availableWidth = Math.Max(40, canvas.Width - (canvas.Width * 16 / 100));
-        var fontSize = Math.Max(12, canvas.Width * theme.FontSize / 1280F);
+        var textArea = new RectangleF(canvas.X + canvas.Width * .08F, canvas.Y + canvas.Height * .12F, availableWidth, canvas.Height * .76F);
+        var baseSize = Math.Max(12, canvas.Width * theme.FontSize / 1280F);
+        var fontSize = theme.AutoFit ? FitFontSize(graphics, text, textArea, theme.FontFamily, style, baseSize) : baseSize;
         using var font = new Font(theme.FontFamily, fontSize, style, GraphicsUnit.Pixel);
         using var format = new StringFormat { LineAlignment = StringAlignment.Center, Alignment = theme.Alignment switch { "Left" => StringAlignment.Near, "Right" => StringAlignment.Far, _ => StringAlignment.Center }, Trimming = StringTrimming.Word };
-        var textArea = new RectangleF(canvas.X + canvas.Width * .08F, canvas.Y + canvas.Height * .12F, availableWidth, canvas.Height * .76F);
         using var shadow = new SolidBrush(Color.FromArgb(190, Color.Black));
         var shadowArea = new RectangleF(textArea.X + 3, textArea.Y + 4, textArea.Width, textArea.Height);
         graphics.DrawString(text, font, shadow, shadowArea, format);
@@ -91,11 +93,36 @@ public sealed class SlideCanvas : Control
         graphics.DrawString(text, font, brush, textArea, format);
     }
 
+    private static float FitFontSize(Graphics graphics, string text, RectangleF area, string family, FontStyle style, float startSize)
+    {
+        float size = Math.Max(12, startSize);
+        float Measure(float s)
+        {
+            using var font = new Font(family, s, style, GraphicsUnit.Pixel);
+            return graphics.MeasureString(text, font, (int)area.Width).Height;
+        }
+        if (Measure(size) > area.Height)
+        {
+            for (float s = size; s >= 12; s -= 1F)
+            {
+                if (Measure(s) <= area.Height) { size = s; break; }
+                size = s;
+            }
+        }
+        else
+        {
+            for (float s = size; s <= 240; s += 1F)
+            {
+                if (Measure(s) > area.Height) break;
+                size = s;
+            }
+        }
+        return size;
+    }
+
     private static void DrawLogo(Graphics graphics, Rectangle canvas, Image logo)
     {
-        var maxWidth = canvas.Width * 0.7F;
-        var maxHeight = canvas.Height * 0.7F;
-        var scale = Math.Min(maxWidth / logo.Width, Math.Min(maxHeight / logo.Height, 1F));
+        var scale = Math.Max((float)canvas.Width / logo.Width, (float)canvas.Height / logo.Height);
         var width = (int)(logo.Width * scale);
         var height = (int)(logo.Height * scale);
         var x = canvas.X + (canvas.Width - width) / 2;
@@ -122,6 +149,8 @@ public sealed class SlideCanvas : Control
 
     private static Rectangle FitAspect(Rectangle container, string ratio)
     {
+        if (string.Equals(ratio, "Current", StringComparison.OrdinalIgnoreCase))
+            return container;
         var values = ratio.Split(':');
         var target = values.Length == 2
                      && double.TryParse(values[0], out var widthRatio)

@@ -93,6 +93,8 @@ public partial class Form1
         }
         if (_statusTab is not null)
             _statusTab.Text = "Tab: " + active.Text.Replace("▧", "").Replace("A", "").Trim();
+        _currentTab = active.Text.Contains("Bible") ? "bible" : active.Text.Contains("Background") ? "background" : active.Text.Contains("Help") ? "help" : "text";
+        _activeAgendaList = _currentTab == "bible" ? _bibleAgendaList : null;
     }
 
     private Control BuildHeader()
@@ -128,8 +130,12 @@ public partial class Form1
     {
         var ribbon = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, AutoScroll = true, BackColor = Color.White };
         var font = RibbonGroup("Font", 285);
-        _fontFamily = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 135 };
-        _fontFamily.Items.AddRange(["Segoe UI", "Arial", "Calibri", "Georgia", "Verdana", "Trebuchet MS"]);
+        _fontFamily = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
+        var fonts = new List<string> { "Segoe UI", "Arial", "Calibri", "Georgia", "Verdana", "Trebuchet MS" };
+        var telugu = new[] { "Nirmala UI", "Noto Sans Telugu", "Gautami", "Vani", "Lohit Telugu", "Telugu Sangam MN", "Raghu Telugu" };
+        var installed = new HashSet<string>(FontFamily.Families.Select(f => f.Name), StringComparer.OrdinalIgnoreCase);
+        fonts.AddRange(telugu.Where(installed.Contains));
+        _fontFamily.Items.AddRange([.. fonts]);
         _fontFamily.SelectedItem = _theme.FontFamily;
         _fontFamily.SelectedIndexChanged += (_, _) => { _theme.FontFamily = _fontFamily.Text; RefreshSlides(); };
         _fontSize = new NumericUpDown { Minimum = 18, Maximum = 130, Value = 56, Width = 53 };
@@ -149,7 +155,9 @@ public partial class Form1
         _alignment.SelectedIndexChanged += (_, _) => { _theme.Alignment = _alignment.Text; RefreshSlides(); };
         _maxLines = new NumericUpDown { Minimum = 1, Maximum = 12, Value = 4, Width = 48 };
         _maxLines.ValueChanged += (_, _) => RebuildSlides();
-        Add(layout, Field("Align", _alignment), Field("Max. lines", _maxLines), Hint("Blank lines start a new slide"));
+        _autoFit = new CheckBox { Text = "Auto-fit text", Checked = _theme.AutoFit, AutoSize = true, Margin = new Padding(0, 10, 8, 0) };
+        _autoFit.CheckedChanged += (_, _) => { _theme.AutoFit = _autoFit.Checked; SaveBackgroundPreferences(); RefreshSlides(); };
+        Add(layout, Field("Align", _alignment), Field("Max. lines", _maxLines), _autoFit, Hint("Blank lines start a new slide. Auto-fit scales text to fill the screen."));
 
         var style = RibbonGroup("Quick style", 270);
         Add(style,
@@ -199,10 +207,10 @@ public partial class Form1
         _brightness.ValueChanged += (_, _) => { _theme.Brightness = _brightness.Value; SaveBackgroundPreferences(); RefreshSlides(); };
         Add(brightness, _brightness);
 
-        var ratio = RibbonGroup("Aspect ratio", 325);
-        foreach (var value in new[] { "16:9", "4:3", "16:10", "9:16", "3:4" })
+        var ratio = RibbonGroup("Aspect ratio", 360);
+        foreach (var value in new[] { "16:9", "4:3", "16:10", "9:16", "3:4", "Current" })
         {
-            var choice = Button(value, value == _theme.AspectRatio ? _brand : Color.White, value == _theme.AspectRatio ? Color.White : Color.FromArgb(31, 48, 68), 52, 32);
+            var choice = Button(value, value == _theme.AspectRatio ? _brand : Color.White, value == _theme.AspectRatio ? Color.White : Color.FromArgb(31, 48, 68), value.Length > 5 ? 64 : 52, 32);
             choice.Click += (_, _) => SetAspectRatio(value, ratio);
             Add(ratio, choice);
         }

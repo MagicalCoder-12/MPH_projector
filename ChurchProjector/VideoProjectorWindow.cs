@@ -5,6 +5,7 @@ using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
+using System.Globalization;
 using DrawingImage = System.Drawing.Image;
 using DrawingBitmap = System.Drawing.Bitmap;
 using DrawingColor = System.Drawing.Color;
@@ -96,7 +97,10 @@ public sealed class VideoProjectorWindow : Window
         _aspectRatio = theme.AspectRatio;
         _lyrics.Text = text;
         _lyrics.FontFamily = new System.Windows.Media.FontFamily(theme.FontFamily);
-        _lyrics.FontSize = Math.Max(24, theme.FontSize * Math.Max(1, ActualWidth / 1280D));
+        var baseSize = Math.Max(24, theme.FontSize * Math.Max(1, ActualWidth / 1280D));
+        _lyrics.FontSize = theme.AutoFit && ActualWidth > 0
+            ? FitFontSizeWpf(text, theme.FontFamily, theme.Bold, baseSize, _canvas.ActualWidth - 160, _canvas.ActualHeight - 160)
+            : baseSize;
         _lyrics.FontWeight = theme.Bold ? FontWeights.Bold : FontWeights.Normal;
         _lyrics.Foreground = new SolidColorBrush(ToMediaColor(theme.TextColor));
         _lyrics.TextAlignment = theme.Alignment switch
@@ -156,6 +160,14 @@ public sealed class VideoProjectorWindow : Window
     private void UpdateCanvasSize()
     {
         if (ActualWidth <= 0 || ActualHeight <= 0) return;
+        if (string.Equals(_aspectRatio, "Current", StringComparison.OrdinalIgnoreCase))
+        {
+            _canvas.Width = ActualWidth;
+            _canvas.Height = ActualHeight;
+            _logoControl.Stretch = Stretch.UniformToFill;
+            return;
+        }
+        _logoControl.Stretch = Stretch.Uniform;
         var values = _aspectRatio.Split(':');
         var ratio = values.Length == 2
                     && double.TryParse(values[0], out var width)
@@ -172,6 +184,38 @@ public sealed class VideoProjectorWindow : Window
         }
         _canvas.Width = canvasWidth;
         _canvas.Height = canvasHeight;
+    }
+
+    private static double FitFontSizeWpf(string text, string family, bool bold, double baseSize, double availWidth, double availHeight)
+    {
+        if (availWidth <= 0 || availHeight <= 0) return baseSize;
+        var weight = bold ? FontWeights.Bold : FontWeights.Normal;
+        double Measure(double size)
+        {
+            var formatted = new FormattedText(text, CultureInfo.CurrentCulture, System.Windows.FlowDirection.LeftToRight,
+                new Typeface(new System.Windows.Media.FontFamily(family), FontStyles.Normal, weight, FontStretches.Normal),
+                size, System.Windows.Media.Brushes.Black, 1);
+            formatted.MaxTextWidth = availWidth;
+            return formatted.Height;
+        }
+        var size = baseSize;
+        if (Measure(size) > availHeight)
+        {
+            for (double s = size; s >= 12; s -= 1)
+            {
+                if (Measure(s) <= availHeight) { size = s; break; }
+                size = s;
+            }
+        }
+        else
+        {
+            for (double s = size; s <= 260; s += 1)
+            {
+                if (Measure(s) > availHeight) break;
+                size = s;
+            }
+        }
+        return size;
     }
 
     private static MediaColor ToMediaColor(DrawingColor color) => MediaColor.FromArgb(color.A, color.R, color.G, color.B);

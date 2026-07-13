@@ -86,7 +86,8 @@ SLIDES AND VERSE NUMBERS
 TEXT TAB
 - Change the font, size, bold setting, text colour, and alignment.
 - Max. lines determines how many lyric lines fit on each slide.
-- Use the Quick style buttons for readable light, warm, or dark text styles.
+- Tick Auto-fit text to automatically scale and wrap the words so they fill the screen.
+- Telugu fonts (Nirmala UI, Noto Sans Telugu, Gautami, and others) are available in the font list when installed.
 
 BACKGROUND TAB
 - Choose a solid background colour, import a custom image, or import a video.
@@ -95,6 +96,7 @@ BACKGROUND TAB
 - Tick Loop video to repeat a video continuously. Untick it to let the video play once and hold its final frame.
 - Adjust brightness for clear projected text.
 - Pick landscape ratios 16:9, 4:3, or 16:10, or portrait ratios 9:16 and 3:4.
+- Pick Current to fill the whole projector screen with the selected image or video, ignoring aspect ratio.
 
 BIBLE TAB
 - New Bible creates a Bible translation record. Save Bible stores its name even before verses are added.
@@ -102,7 +104,8 @@ BIBLE TAB
 - Use Ctrl-click to select separate verses, or click and drag over the verse list to select a continuous range.
 - Selected verses become consecutive live slides. Add verse adds the selected passage to the service agenda.
 - Jump to a reference with the box at the top: type e.g. "John 3:16" or "Psalm 23:1-6" and press Go or Enter.
-- Drag the separators between the agenda, books, verses, and preview panels to give each area more room.
+- The Service agenda on the right holds the Bible passages for this service. Use Add verse in the Verses panel, then Remove/Up/Down here. Number keys do not jump verses in this tab.
+- Drag the separators between the books, verses, preview, and agenda panels to give each area more room.
 - Import accepts a JSON translation file. See the project README for its required format.
 
 STAGE CONTROLS

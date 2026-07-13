@@ -5,15 +5,11 @@ public partial class Form1
     private Control BuildWorkspace()
     {
         var outer = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10, 10, 10, 12), BackColor = Color.FromArgb(241, 244, 247) };
-        var agendaSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
-        agendaSplit.Panel1.Controls.Add(BuildAgendaPanel());
-        var right = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
-        right.Panel1.Controls.Add(BuildEditorPanel());
-        right.Panel2.Controls.Add(BuildPreviewPanel());
-        agendaSplit.Panel2.Controls.Add(right);
-        LayoutSplit(agendaSplit, outer, 0.32f);
-        LayoutSplit(right, right, 36f / 68f);
-        outer.Controls.Add(agendaSplit);
+        var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
+        split.Panel1.Controls.Add(BuildEditorPanel());
+        split.Panel2.Controls.Add(BuildPreviewPanel());
+        LayoutSplit(split, outer, 0.56f);
+        outer.Controls.Add(split);
         return outer;
     }
 

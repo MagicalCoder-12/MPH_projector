@@ -41,12 +41,41 @@ public partial class Form1
         navSplit.Panel1.Controls.Add(BuildBibleNavigatorPanel());
         var right = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
         right.Panel1.Controls.Add(BuildBibleVersesPanel());
-        right.Panel2.Controls.Add(BuildBiblePreviewPanel());
+        var rightVertical = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
+        rightVertical.Panel1.Controls.Add(BuildBiblePreviewPanel());
+        rightVertical.Panel2.Controls.Add(BuildBibleAgendaPanel());
+        right.Panel2.Controls.Add(rightVertical);
         navSplit.Panel2.Controls.Add(right);
         LayoutSplit(navSplit, outer, 0.28f);
         LayoutSplit(right, right, 44f / 72f);
+        LayoutSplit(rightVertical, rightVertical, 0.62f);
         outer.Controls.Add(navSplit);
         RefreshBibleVerses();
+        return outer;
+    }
+
+    private Control BuildBibleAgendaPanel()
+    {
+        var outer = Section("Service agenda", "Order Bible passages for this service");
+        var content = (TableLayoutPanel)outer.Tag!;
+        content.RowCount = 3;
+        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        var actions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 34, WrapContents = false, Margin = new Padding(0) };
+        var remove = Button("Remove", Color.White, Color.FromArgb(31, 48, 68), 70, 32);
+        remove.Click += (_, _) => RemoveAgendaItem();
+        var up = Button("Up", Color.White, Color.FromArgb(31, 48, 68), 40, 32);
+        up.Click += (_, _) => MoveAgendaItem(-1);
+        var down = Button("Down", Color.White, Color.FromArgb(31, 48, 68), 52, 32);
+        down.Click += (_, _) => MoveAgendaItem(1);
+        actions.Controls.AddRange([remove, up, down]);
+        _bibleAgendaList = new ListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 10F) };
+        _bibleAgendaList.DoubleClick += (_, _) => { if (_bibleAgendaList.SelectedItem is AgendaItem) LoadAgendaItem(); };
+        _bibleAgendaList.SelectedIndexChanged += (_, _) => { if (!_updating && _bibleAgendaList.SelectedItem is AgendaItem) LoadAgendaItem(); };
+        content.Controls.Add(actions, 0, 0);
+        content.Controls.Add(_bibleAgendaList, 0, 1);
+        RefreshBibleAgenda();
         return outer;
     }
 

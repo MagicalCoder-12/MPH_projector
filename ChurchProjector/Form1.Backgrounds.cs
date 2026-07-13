@@ -22,6 +22,7 @@ public partial class Form1
         _theme.Brightness = Math.Clamp(preferences.Brightness, -75, 75);
         _theme.AspectRatio = string.IsNullOrWhiteSpace(preferences.AspectRatio) ? "16:9" : preferences.AspectRatio;
         _theme.VideoLoop = preferences.VideoLoop;
+        _theme.AutoFit = preferences.AutoFit;
         if (preferences.SelectedBackgroundId is not Guid id) return;
         var asset = _backgrounds.FirstOrDefault(item => item.Id == id);
         if (asset is { } savedAsset && File.Exists(savedAsset.FilePath)) ApplyBackgroundAsset(savedAsset, false);
@@ -126,6 +127,7 @@ public partial class Form1
         _data.BackgroundPreferences.AspectRatio = _theme.AspectRatio;
         _data.BackgroundPreferences.SelectedBackgroundId = _theme.BackgroundAssetId;
         _data.BackgroundPreferences.VideoLoop = _theme.VideoLoop;
+        _data.BackgroundPreferences.AutoFit = _theme.AutoFit;
         Persist();
     }
 }

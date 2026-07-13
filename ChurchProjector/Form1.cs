@@ -9,6 +9,8 @@ public partial class Form1 : Form
     private List<AgendaItem> _agenda = [];
     private List<BibleTranslation> _bibles = [];
     private List<BackgroundAsset> _backgrounds = [];
+    private ListBox? _activeAgendaList;
+    private string _currentTab = "text";
     private readonly List<string> _slides = [];
     private readonly List<int> _verseSlideIndexes = [];
 
@@ -21,6 +23,7 @@ public partial class Form1 : Form
     private SlideCanvas _audiencePreview = null!;
     private ComboBox _fontFamily = null!;
     private NumericUpDown _fontSize = null!;
+    private CheckBox _autoFit = null!;
     private Button _boldButton = null!;
     private Button _fontColorButton = null!;
     private ComboBox _alignment = null!;
@@ -380,7 +383,7 @@ public partial class Form1 : Form
             Keys.D7 or Keys.NumPad7 => 7, Keys.D8 or Keys.NumPad8 => 8, Keys.D9 or Keys.NumPad9 => 9,
             _ => 0
         };
-        if (verse > 0 && verse <= _verseSlideIndexes.Count)
+        if (_currentTab == "text" && verse > 0 && verse <= _verseSlideIndexes.Count)
         {
             SelectSlide(_verseSlideIndexes[verse - 1]);
             return true;

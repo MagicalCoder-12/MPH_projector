@@ -64,42 +64,42 @@ public partial class Form1
 
     private void LoadAgendaItem()
     {
-        if (_agendaList.SelectedItem is not AgendaItem item) return;
+        if (_activeAgendaList?.SelectedItem is not AgendaItem item) return;
         LoadSongContent(item.Title, item.LyricsSnapshot, item.SongId, "Loaded from Service Agenda");
     }
 
     private void RemoveAgendaItem()
     {
-        if (_agendaList.SelectedItem is not AgendaItem item) return;
-        var index = _agendaList.SelectedIndex;
+        if (_activeAgendaList?.SelectedItem is not AgendaItem item) return;
+        var index = _activeAgendaList.SelectedIndex;
         _agenda.Remove(item);
         Persist();
         RefreshAgenda();
-        if (_agenda.Count > 0) _agendaList.SelectedIndex = Math.Min(index, _agenda.Count - 1);
+        if (_agenda.Count > 0) _activeAgendaList.SelectedIndex = Math.Min(index, _agenda.Count - 1);
     }
 
     private void UpdateAgendaItem()
     {
-        if (_agendaList.SelectedItem is not AgendaItem item) return;
+        if (_activeAgendaList?.SelectedItem is not AgendaItem item) return;
         item.Title = string.IsNullOrWhiteSpace(_titleBox.Text) ? "Untitled song" : _titleBox.Text.Trim();
         item.SongId = _currentSongId;
         item.LyricsSnapshot = _lyricsBox.Text;
-        var index = _agendaList.SelectedIndex;
+        var index = _activeAgendaList.SelectedIndex;
         Persist();
         RefreshAgenda();
-        _agendaList.SelectedIndex = index;
+        _activeAgendaList.SelectedIndex = index;
     }
 
     private void MoveAgendaItem(int direction)
     {
-        if (_agendaList.SelectedItem is not AgendaItem item) return;
+        if (_activeAgendaList?.SelectedItem is not AgendaItem item) return;
         var current = _agenda.IndexOf(item);
         var target = current + direction;
         if (target < 0 || target >= _agenda.Count) return;
         (_agenda[current], _agenda[target]) = (_agenda[target], _agenda[current]);
         Persist();
         RefreshAgenda();
-        _agendaList.SelectedIndex = target;
+        _activeAgendaList.SelectedIndex = target;
     }
 
     private void Persist()
