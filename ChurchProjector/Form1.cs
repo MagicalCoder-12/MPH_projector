@@ -78,6 +78,7 @@ public partial class Form1 : Form
     {
         InitializeComponent();
         _data = _store.Load();
+        EnsureDefaultLogo();
         if (_data.Songs.Count == 0)
         {
             _data.Songs.AddRange(DefaultSongs());
@@ -116,12 +117,23 @@ public partial class Form1 : Form
         try
         {
             _bibles.Add(_store.ImportSqliteBible(teluguBiblePath));
-            _store.Save(_data);
+            Persist();
         }
         catch
         {
             // The Bible can still be imported manually through the Bible tab if the source file changes.
         }
+    }
+
+    private void EnsureDefaultLogo()
+    {
+        if (!string.IsNullOrWhiteSpace(_data.BackgroundPreferences.LogoPath) && File.Exists(_data.BackgroundPreferences.LogoPath)) return;
+        var logoPath = _store.EnsureDefaultLogo();
+        if (string.IsNullOrEmpty(logoPath)) return;
+        _data.BackgroundPreferences.LogoPath = logoPath;
+        try { _logoImage = Image.FromFile(logoPath); }
+        catch { _logoImage = null; }
+        Persist();
     }
 
     private void LoadSong(Song song)

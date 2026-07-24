@@ -83,6 +83,8 @@ public sealed class LocalDataStore
         "MPH_projector");
     private string ImageDirectory => Path.Combine(BackgroundRoot, "images");
     private string VideoDirectory => Path.Combine(BackgroundRoot, "videos");
+    private string LogosDirectory => Path.Combine(BackgroundRoot, "logos");
+    private static readonly string DefaultLogoName = "Logo.jpg";
 
     public AppData Load()
     {
@@ -99,8 +101,19 @@ public sealed class LocalDataStore
 
     public void Save(AppData data)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
-        File.WriteAllText(_filePath, JsonSerializer.Serialize(data, Options));
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
+            var json = JsonSerializer.Serialize(data, Options);
+            var tempPath = _filePath + ".tmp";
+            File.WriteAllText(tempPath, json);
+            File.Replace(tempPath, _filePath, null);
+        }
+        catch (IOException ex)
+        {
+            try { File.WriteAllText(_filePath, JsonSerializer.Serialize(data, Options)); }
+            catch { throw new IOException($"Could not save library to {_filePath}: {ex.Message}", ex); }
+        }
     }
 
     public string Serialize(AppData data) => JsonSerializer.Serialize(data, Options);
@@ -110,10 +123,21 @@ public sealed class LocalDataStore
     public string ImportLogo(string sourcePath)
     {
         if (!File.Exists(sourcePath)) return "";
-        var directory = Path.Combine(BackgroundRoot, "logos");
-        Directory.CreateDirectory(directory);
-        var destination = Path.Combine(directory, $"{Guid.NewGuid():N}{Path.GetExtension(sourcePath)}");
+        Directory.CreateDirectory(LogosDirectory);
+        var destination = Path.Combine(LogosDirectory, $"{Guid.NewGuid():N}{Path.GetExtension(sourcePath)}");
         File.Copy(sourcePath, destination, true);
+        return destination;
+    }
+
+    public string EnsureDefaultLogo()
+    {
+        var destination = Path.Combine(LogosDirectory, DefaultLogoName);
+        if (File.Exists(destination)) return destination;
+        var source = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", DefaultLogoName);
+        if (!File.Exists(source)) source = Path.Combine(AppContext.BaseDirectory, "Assets", DefaultLogoName);
+        if (!File.Exists(source)) return "";
+        Directory.CreateDirectory(LogosDirectory);
+        File.Copy(source, destination, false);
         return destination;
     }
 
