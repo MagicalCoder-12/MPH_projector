@@ -6,7 +6,7 @@ public partial class Form1
     {
         var outer = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10, 10, 10, 12), BackColor = Color.FromArgb(241, 244, 247) };
 
-        // Top-level horizontal split: library (left) | editor+preview (right)
+        // Left: library (narrow) | Right: editor (middle) + preview (right)
         var mainSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
         mainSplit.Panel1.MinimumSize = new Size(220, 0);
         mainSplit.Panel2.MinimumSize = new Size(300, 0);
@@ -33,10 +33,10 @@ public partial class Form1
         _libraryList.SelectedIndexChanged += (_, _) => { if (!_updating && _libraryList.SelectedItem is Song s) LoadSong(s); };
         libraryContent.Controls.Add(_libraryList, 0, 1);
 
-        libraryContent.Controls.Add(SmallLabel("Double-click or select a song to edit"), 0, 2);
+        libraryContent.Controls.Add(SmallLabel("Double-click or select a song"), 0, 2);
         mainSplit.Panel1.Controls.Add(libraryOuter);
 
-        // Right panel: editor on top, preview on bottom
+        // Right panel: editor (left) + preview (right), stacked vertically
         var rightSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
         rightSplit.Panel1.Controls.Add(BuildEditorPanel());
         rightSplit.Panel2.Controls.Add(BuildPreviewPanel());
