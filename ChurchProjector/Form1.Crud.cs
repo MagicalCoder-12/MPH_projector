@@ -29,7 +29,7 @@ public partial class Form1
         song.Lyrics = _lyricsBox.Text;
         Persist();
         FilterLibrary("");
-        _libraryList.SelectedItem = song;
+        if (_libraryList is not null) _libraryList.SelectedItem = song;
         _slideStatus.Text = "Saved - " + song.Title;
     }
 
