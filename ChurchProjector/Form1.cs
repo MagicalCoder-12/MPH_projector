@@ -13,6 +13,7 @@ public partial class Form1 : Form
     private string _currentTab = "text";
     private readonly List<string> _slides = [];
     private readonly List<int> _verseSlideIndexes = [];
+    private TextBox _librarySearch = null!;
 
     private RichTextBox _lyricsBox = null!;
     private TextBox _titleBox = null!;

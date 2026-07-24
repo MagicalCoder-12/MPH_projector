@@ -5,11 +5,45 @@ public partial class Form1
     private Control BuildWorkspace()
     {
         var outer = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10, 10, 10, 12), BackColor = Color.FromArgb(241, 244, 247) };
-        var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
-        split.Panel1.Controls.Add(BuildEditorPanel());
-        split.Panel2.Controls.Add(BuildPreviewPanel());
-        LayoutSplit(split, outer, 0.56f);
-        outer.Controls.Add(split);
+
+        // Top-level horizontal split: library (left) | editor+preview (right)
+        var mainSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
+        mainSplit.Panel1.MinimumSize = new Size(220, 0);
+        mainSplit.Panel2.MinimumSize = new Size(300, 0);
+
+        // Left panel: song library
+        var libraryOuter = Section("Song library", "Your saved songs");
+        var libraryContent = (TableLayoutPanel)libraryOuter.Tag!;
+        libraryContent.RowCount = 3;
+        libraryContent.RowStyles.Clear();
+        libraryContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        libraryContent.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        libraryContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var addBtn = Button("+ New", _brand, Color.White, 62, 32);
+        addBtn.Click += (_, _) => NewSong();
+        libraryContent.Controls.Add(addBtn, 0, 0);
+
+        _librarySearch = new TextBox { PlaceholderText = "Search songs", Dock = DockStyle.Top, Margin = new Padding(0, 0, 0, 6) };
+        _librarySearch.TextChanged += (_, _) => FilterLibrary(_librarySearch.Text);
+        libraryContent.Controls.Add(_librarySearch, 0, 0);
+
+        _libraryList = new ListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 10F) };
+        _libraryList.DoubleClick += (_, _) => { if (_libraryList.SelectedItem is Song song) LoadSong(song); };
+        _libraryList.SelectedIndexChanged += (_, _) => { if (!_updating && _libraryList.SelectedItem is Song s) LoadSong(s); };
+        libraryContent.Controls.Add(_libraryList, 0, 1);
+
+        libraryContent.Controls.Add(SmallLabel("Double-click or select a song to edit"), 0, 2);
+        mainSplit.Panel1.Controls.Add(libraryOuter);
+
+        // Right panel: editor on top, preview on bottom
+        var rightSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
+        rightSplit.Panel1.Controls.Add(BuildEditorPanel());
+        rightSplit.Panel2.Controls.Add(BuildPreviewPanel());
+        LayoutSplit(rightSplit, outer, 0.55f);
+        mainSplit.Panel2.Controls.Add(rightSplit);
+
+        outer.Controls.Add(mainSplit);
         return outer;
     }
 
