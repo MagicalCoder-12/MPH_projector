@@ -62,6 +62,9 @@ public partial class Form1
 
         libraryContent.Controls.Add(_libraryList, 0, 1);
 
+        // Populate the library immediately so songs are visible on startup
+        FilterLibrary("");
+
         // Add the library section to the left panel
         mainSplit.Panel1.Controls.Add(libraryOuter);
 
@@ -138,7 +141,7 @@ public partial class Form1
         content.RowStyles.Add(new RowStyle(SizeType.Percent, 52));
 
         var agendaActions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 34, WrapContents = false, Margin = new Padding(0) };
-        var add = Button("+ Add", _brand, Color.White, 72, 32);
+        var add = Button("Add song", _brand, Color.White, 72, 32);
         add.Click += (_, _) => AddCurrentSongToAgenda();
         var remove = Button("Remove", Color.White, Color.FromArgb(31, 48, 68), 56, 32);
         remove.Click += (_, _) => RemoveAgendaItem();
@@ -179,7 +182,7 @@ public partial class Form1
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         var songActions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 34, WrapContents = false, Margin = new Padding(0, 0, 0, 5) };
-        var newSong = Button("+ New", Color.White, Color.FromArgb(31, 48, 68), 62, 32);
+        var newSong = Button("New song", Color.White, Color.FromArgb(31, 48, 68), 100, 32);
         newSong.Click += (_, _) => NewSong();
         var saveSong = Button("Save", _brand, Color.White, 62, 32);
         saveSong.Click += (_, _) => SaveCurrentSong();
@@ -243,14 +246,23 @@ public partial class Form1
 
     private Panel RibbonGroup(string title, int width)
     {
-        var group = new Panel { Width = width, Height = 130, Margin = new Padding(0, 0, 8, 0), Padding = new Padding(9, 8, 9, 22), BackColor = Color.White };
-        group.Paint += (_, e) => { using var pen = new Pen(_panelBorder); e.Graphics.DrawLine(pen, group.Width - 1, 4, group.Width - 1, group.Height - 4); };
-        var label = new Label { Text = title, ForeColor = Color.FromArgb(91, 105, 121), AutoSize = true, Location = new Point(10, 107) };
-        var items = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, AutoSize = false, BackColor = Color.White };
+        var group = new Panel { Width = width, Height = 130, Margin = new Padding(0, 0, 8, 0), Padding = new Padding(9, 28, 9, 22), BackColor = Color.White };
+        group.Paint += (_, e) => { using var pen = new Pen(_panelBorder); e.Graphics.DrawLine(pen, group.Width - 1, 28, group.Width - 1, group.Height - 4); };
+        var label = new Label { Text = title.ToUpperInvariant(), ForeColor = Color.FromArgb(77, 93, 111), Font = new Font("Segoe UI", 9F, FontStyle.Bold), AutoSize = true, Location = new Point(10, 6) };
+        var items = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, AutoSize = false, BackColor = Color.White, Padding = new Padding(6, 6, 6, 6) };
         group.Controls.Add(items);
         group.Controls.Add(label);
         group.Tag = items;
         return group;
+    }
+
+    private Button StyleButton(string label, Color background, Color foreground, Action action)
+    {
+        var btn = Button(label, background, foreground, 72, 48);
+        btn.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+        btn.FlatAppearance.BorderSize = 0;
+        btn.Click += (_, _) => action();
+        return btn;
     }
 
     private static void Add(Panel group, params Control[] controls) => ((FlowLayoutPanel)group.Tag!).Controls.AddRange(controls);

@@ -161,9 +161,9 @@ public partial class Form1
 
         var style = RibbonGroup("Quick style", 270);
         Add(style,
-            Preset("Light text", Color.White, Color.FromArgb(28, 34, 45), () => SetTextStyle(Color.White, true)),
-            Preset("Warm text", Color.FromArgb(255, 239, 171), Color.FromArgb(71, 48, 40), () => SetTextStyle(Color.FromArgb(255, 239, 171), true)),
-            Preset("Dark text", Color.FromArgb(28, 40, 52), Color.FromArgb(232, 240, 245), () => SetTextStyle(Color.FromArgb(28, 40, 52), false)));
+            StyleButton("Light", Color.White, Color.FromArgb(28, 34, 45), () => SetTextStyle(Color.White, true)),
+            StyleButton("Warm", Color.FromArgb(255, 239, 171), Color.FromArgb(71, 48, 40), () => SetTextStyle(Color.FromArgb(255, 239, 171), true)),
+            StyleButton("Dark", Color.FromArgb(28, 40, 52), Color.FromArgb(232, 240, 245), () => SetTextStyle(Color.FromArgb(28, 40, 52), false)));
         ribbon.Controls.AddRange([font, layout, style]);
         return ribbon;
     }
