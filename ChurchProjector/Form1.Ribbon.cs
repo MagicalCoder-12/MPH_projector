@@ -129,37 +129,106 @@ public partial class Form1
     private Control BuildTextRibbon()
     {
         var ribbon = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, AutoScroll = true, BackColor = Color.White };
-        var font = RibbonGroup("Font", 285);
-        _fontFamily = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
-        var fonts = new List<string> { "Segoe UI", "Arial", "Calibri", "Georgia", "Verdana", "Trebuchet MS" };
-        var telugu = new[] { "Nirmala UI", "Noto Sans Telugu", "Gautami", "Vani", "Lohit Telugu", "Telugu Sangam MN", "Raghu Telugu" };
+        
+        // Clipboard group (Cut, Copy, Paste)
+        var clipboard = RibbonGroup("Clipboard", 140);
+        _cutButton = Button("✂", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
+        _cutButton.Font = new Font("Segoe UI", 10F);
+        _cutButton.Click += (_, _) => { if (_lyricsBox.SelectedText.Length > 0) Clipboard.SetText(_lyricsBox.SelectedText); _lyricsBox.SelectedText = ""; };
+        _copyButton = Button("📋", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
+        _copyButton.Font = new Font("Segoe UI", 10F);
+        _copyButton.Click += (_, _) => { if (_lyricsBox.SelectedText.Length > 0) Clipboard.SetText(_lyricsBox.SelectedText); };
+        _pasteButton = Button("📄", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
+        _pasteButton.Font = new Font("Segoe UI", 10F);
+        _pasteButton.Click += (_, _) => { if (Clipboard.ContainsText()) _lyricsBox.SelectedText = Clipboard.GetText(); };
+        Add(clipboard, _cutButton, _copyButton, _pasteButton);
+
+        // Font group - comprehensive font controls like Word
+        var font = RibbonGroup("Font", 420);
+        _fontFamily = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 180 };
+        var fonts = new List<string> { "Segoe UI", "Arial", "Calibri", "Cambria", "Georgia", "Verdana", "Trebuchet MS", "Times New Roman", "Tahoma", "Century Gothic" };
+        // Telugu fonts that support Telugu script rendering
+        var telugu = new[] { "Nirmala UI", "Noto Sans Telugu", "Gautami", "Vani", "Lohit Telugu", "Telugu Sangam MN", "Raghu Telugu", "Kalinga", "Shruti", "Tunga", "Malgun Gothic", "Microsoft Himalaya" };
         var installed = new HashSet<string>(FontFamily.Families.Select(f => f.Name), StringComparer.OrdinalIgnoreCase);
         fonts.AddRange(telugu.Where(installed.Contains));
-        _fontFamily.Items.AddRange([.. fonts]);
+        _fontFamily.Items.AddRange([.. fonts.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(f => f)]);
         _fontFamily.SelectedItem = _theme.FontFamily;
         _fontFamily.SelectedIndexChanged += (_, _) => { _theme.FontFamily = _fontFamily.Text; RefreshSlides(); };
-        _fontSize = new NumericUpDown { Minimum = 18, Maximum = 130, Value = 56, Width = 53 };
+        
+        _fontSize = new NumericUpDown { Minimum = 8, Maximum = 200, Value = 56, Width = 53 };
         _fontSize.ValueChanged += (_, _) => { _theme.FontSize = (float)_fontSize.Value; RefreshSlides(); };
+        
         _boldButton = Button("B", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
         _boldButton.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
         _boldButton.Click += (_, _) => { _theme.Bold = !_theme.Bold; UpdateBoldButton(); RefreshSlides(); };
+        
+        _italicButton = Button("I", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
+        _italicButton.Font = new Font("Segoe UI", 10F, FontStyle.Italic);
+        _italicButton.Click += (_, _) => { _theme.Italic = !_theme.Italic; UpdateItalicButton(); RefreshSlides(); };
+        
+        _underlineButton = Button("U", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
+        _underlineButton.Font = new Font("Segoe UI", 10F, FontStyle.Underline);
+        _underlineButton.Click += (_, _) => { _theme.Underline = !_theme.Underline; UpdateUnderlineButton(); RefreshSlides(); };
+        
+        _strikethroughButton = Button("abc", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
+        _strikethroughButton.Font = new Font("Segoe UI", 8F, FontStyle.Strikeout);
+        _strikethroughButton.Click += (_, _) => { _theme.Strikethrough = !_theme.Strikethrough; UpdateStrikethroughButton(); RefreshSlides(); };
+        
+        _subscriptButton = Button("X₂", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
+        _subscriptButton.Font = new Font("Segoe UI", 8F);
+        _subscriptButton.Click += (_, _) => { _theme.Subscript = !_theme.Subscript; _theme.Superscript = false; UpdateSubSuperButtons(); RefreshSlides(); };
+        
+        _superscriptButton = Button("X²", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
+        _superscriptButton.Font = new Font("Segoe UI", 8F);
+        _superscriptButton.Click += (_, _) => { _theme.Superscript = !_theme.Superscript; _theme.Subscript = false; UpdateSubSuperButtons(); RefreshSlides(); };
+        
         _fontColorButton = Button("A", _theme.TextColor, Color.White, 36, 29);
         _fontColorButton.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
         _fontColorButton.Click += (_, _) => ChooseTextColor();
-        Add(font, _fontFamily, _fontSize, _boldButton, _fontColorButton);
+        
+        _highlightColorButton = Button("▱", Color.FromArgb(255, 255, 153), Color.FromArgb(31, 48, 68), 36, 29);
+        _highlightColorButton.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _highlightColorButton.Click += (_, _) => ChooseHighlightColor();
+        
+        _clearFormattingButton = Button("A⃠", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
+        _clearFormattingButton.Font = new Font("Segoe UI", 9F);
+        _clearFormattingButton.Click += (_, _) => ClearFormatting();
+        
+        Add(font, _fontFamily, _fontSize, _boldButton, _italicButton, _underlineButton, _strikethroughButton, _subscriptButton, _superscriptButton, _fontColorButton, _highlightColorButton, _clearFormattingButton);
 
-        var layout = RibbonGroup("Slide layout", 290);
+        // Paragraph group - alignment and spacing
+        var paragraph = RibbonGroup("Paragraph", 290);
         _alignment = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 105 };
-        _alignment.Items.AddRange(["Left", "Centre", "Right"]);
+        _alignment.Items.AddRange(["Left", "Centre", "Right", "Justify"]);
         _alignment.SelectedItem = "Centre";
         _alignment.SelectedIndexChanged += (_, _) => { _theme.Alignment = _alignment.Text; RefreshSlides(); };
+        
+        _bulletsButton = Button("≡", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
+        _bulletsButton.Font = new Font("Segoe UI", 10F);
+        _bulletsButton.Click += (_, _) => ToggleBullets();
+        
+        _numberingButton = Button("1.", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
+        _numberingButton.Font = new Font("Segoe UI", 9F);
+        _numberingButton.Click += (_, _) => ToggleNumbering();
+        
+        _decreaseIndentButton = Button("➤", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
+        _decreaseIndentButton.Font = new Font("Segoe UI", 8F);
+        _decreaseIndentButton.Click += (_, _) => AdjustIndent(-1);
+        
+        _increaseIndentButton = Button("➤", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
+        _increaseIndentButton.Font = new Font("Segoe UI", 8F);
+        _increaseIndentButton.Click += (_, _) => AdjustIndent(1);
+        
+        _lineSpacing = new NumericUpDown { Minimum = 1, Maximum = 5, Value = 1, Increment = 0.1m, Width = 48 };
+        _lineSpacing.ValueChanged += (_, _) => { _theme.LineSpacing = (float)_lineSpacing.Value; RefreshSlides(); };
+        
         _maxLines = new NumericUpDown { Minimum = 1, Maximum = 12, Value = 4, Width = 48 };
         _maxLines.ValueChanged += (_, _) => RebuildSlides();
-        _autoFit = new CheckBox { Text = "Auto-fit text", Checked = _theme.AutoFit, AutoSize = true, Margin = new Padding(0, 10, 8, 0) };
-        _autoFit.CheckedChanged += (_, _) => { _theme.AutoFit = _autoFit.Checked; SaveBackgroundPreferences(); RefreshSlides(); };
-        Add(layout, Field("Align", _alignment), Field("Max. lines", _maxLines), _autoFit, Hint("Blank lines start a new slide. Auto-fit scales text to fill the screen."));
+        
+        Add(paragraph, Field("Align", _alignment), _bulletsButton, _numberingButton, _decreaseIndentButton, _increaseIndentButton, Field("Spacing", _lineSpacing), Field("Max lines", _maxLines));
 
-        var style = RibbonGroup("Quick style", 270);
+        // Styles group - quick text styles
+        var styles = RibbonGroup("Styles", 320);
         var tt = new ToolTip();
         var lightPreview = PreviewStyle("Light", Color.White, Color.FromArgb(28, 34, 45), () => SetTextStyle(Color.White, true));
         tt.SetToolTip(lightPreview, "Light text — white on dark background");
@@ -167,8 +236,11 @@ public partial class Form1
         tt.SetToolTip(warmPreview, "Warm text — warm cream with dark text");
         var darkPreview = PreviewStyle("Dark", Color.FromArgb(28, 40, 52), Color.FromArgb(232, 240, 245), () => SetTextStyle(Color.FromArgb(28, 40, 52), false));
         tt.SetToolTip(darkPreview, "Dark text — dark background with light text");
-        Add(style, lightPreview, warmPreview, darkPreview);
-        ribbon.Controls.AddRange([font, layout, style]);
+        var titlePreview = PreviewStyle("Title", Color.FromArgb(255, 210, 64), Color.FromArgb(22, 34, 52), () => SetTextStyle(Color.FromArgb(255, 210, 64), true));
+        tt.SetToolTip(titlePreview, "Title style — golden accent color");
+        Add(styles, lightPreview, warmPreview, darkPreview, titlePreview);
+        
+        ribbon.Controls.AddRange([clipboard, font, paragraph, styles]);
         return ribbon;
     }
 

@@ -9,8 +9,15 @@ public sealed class PresentationTheme
     public string FontFamily { get; set; } = "Segoe UI";
     public float FontSize { get; set; } = 56;
     public bool Bold { get; set; } = true;
+    public bool Italic { get; set; }
+    public bool Underline { get; set; }
+    public bool Strikethrough { get; set; }
+    public bool Subscript { get; set; }
+    public bool Superscript { get; set; }
     public Color TextColor { get; set; } = Color.White;
+    public Color HighlightColor { get; set; } = Color.Transparent;
     public string Alignment { get; set; } = "Centre";
+    public float LineSpacing { get; set; } = 1.0f;
     public Color BackgroundColor { get; set; } = Color.FromArgb(22, 34, 52);
     public Image? BackgroundImage { get; set; }
     public Guid? BackgroundAssetId { get; set; }
@@ -79,13 +86,21 @@ public sealed class SlideCanvas : Control
         using var shade = new SolidBrush(Color.FromArgb(35, Color.Black));
         graphics.FillRectangle(shade, canvas);
 
-        var style = theme.Bold ? FontStyle.Bold : FontStyle.Regular;
+        var style = FontStyle.Regular;
+        if (theme.Bold) style |= FontStyle.Bold;
+        if (theme.Italic) style |= FontStyle.Italic;
+        
         var availableWidth = Math.Max(40, canvas.Width - (canvas.Width * 16 / 100));
         var textArea = new RectangleF(canvas.X + canvas.Width * .08F, canvas.Y + canvas.Height * .12F, availableWidth, canvas.Height * .76F);
         var baseSize = Math.Max(12, canvas.Width * theme.FontSize / 1280F);
         var fontSize = theme.AutoFit ? FitFontSize(graphics, text, textArea, theme.FontFamily, style, baseSize) : baseSize;
         using var font = new Font(theme.FontFamily, fontSize, style, GraphicsUnit.Pixel);
-        using var format = new StringFormat { LineAlignment = StringAlignment.Center, Alignment = theme.Alignment switch { "Left" => StringAlignment.Near, "Right" => StringAlignment.Far, _ => StringAlignment.Center }, Trimming = StringTrimming.Word };
+        using var format = new StringFormat 
+        { 
+            LineAlignment = StringAlignment.Center, 
+            Alignment = theme.Alignment switch { "Left" => StringAlignment.Near, "Right" => StringAlignment.Far, "Justify" => StringAlignment.Center, _ => StringAlignment.Center }, 
+            Trimming = StringTrimming.Word 
+        };
         using var shadow = new SolidBrush(Color.FromArgb(190, Color.Black));
         var shadowArea = new RectangleF(textArea.X + 3, textArea.Y + 4, textArea.Width, textArea.Height);
         graphics.DrawString(text, font, shadow, shadowArea, format);

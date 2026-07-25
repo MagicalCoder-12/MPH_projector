@@ -26,7 +26,22 @@ public partial class Form1 : Form
     private NumericUpDown _fontSize = null!;
     private CheckBox _autoFit = null!;
     private Button _boldButton = null!;
+    private Button _italicButton = null!;
+    private Button _underlineButton = null!;
+    private Button _strikethroughButton = null!;
+    private Button _subscriptButton = null!;
+    private Button _superscriptButton = null!;
     private Button _fontColorButton = null!;
+    private Button _highlightColorButton = null!;
+    private Button _clearFormattingButton = null!;
+    private Button _cutButton = null!;
+    private Button _copyButton = null!;
+    private Button _pasteButton = null!;
+    private Button _bulletsButton = null!;
+    private Button _numberingButton = null!;
+    private Button _decreaseIndentButton = null!;
+    private Button _increaseIndentButton = null!;
+    private NumericUpDown _lineSpacing = null!;
     private ComboBox _alignment = null!;
     private NumericUpDown _maxLines = null!;
     private TrackBar _brightness = null!;
@@ -246,6 +261,103 @@ public partial class Form1 : Form
     {
         _boldButton.BackColor = _theme.Bold ? _brand : Color.FromArgb(232, 237, 244);
         _boldButton.ForeColor = _theme.Bold ? Color.White : Color.FromArgb(31, 48, 68);
+    }
+
+    private void UpdateItalicButton()
+    {
+        _italicButton.BackColor = _theme.Italic ? _brand : Color.FromArgb(232, 237, 244);
+        _italicButton.ForeColor = _theme.Italic ? Color.White : Color.FromArgb(31, 48, 68);
+    }
+
+    private void UpdateUnderlineButton()
+    {
+        _underlineButton.BackColor = _theme.Underline ? _brand : Color.FromArgb(232, 237, 244);
+        _underlineButton.ForeColor = _theme.Underline ? Color.White : Color.FromArgb(31, 48, 68);
+    }
+
+    private void UpdateStrikethroughButton()
+    {
+        _strikethroughButton.BackColor = _theme.Strikethrough ? _brand : Color.FromArgb(232, 237, 244);
+        _strikethroughButton.ForeColor = _theme.Strikethrough ? Color.White : Color.FromArgb(31, 48, 68);
+    }
+
+    private void UpdateSubSuperButtons()
+    {
+        _subscriptButton.BackColor = _theme.Subscript ? _brand : Color.FromArgb(232, 237, 244);
+        _subscriptButton.ForeColor = _theme.Subscript ? Color.White : Color.FromArgb(31, 48, 68);
+        _superscriptButton.BackColor = _theme.Superscript ? _brand : Color.FromArgb(232, 237, 244);
+        _superscriptButton.ForeColor = _theme.Superscript ? Color.White : Color.FromArgb(31, 48, 68);
+    }
+
+    private void ChooseHighlightColor()
+    {
+        using var dialog = new ColorDialog { Color = Color.FromArgb(255, 255, 153), FullOpen = true };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        _highlightColorButton.BackColor = dialog.Color;
+        RefreshSlides();
+    }
+
+    private void ClearFormatting()
+    {
+        _theme.Bold = false;
+        _theme.Italic = false;
+        _theme.Underline = false;
+        _theme.Strikethrough = false;
+        _theme.Subscript = false;
+        _theme.Superscript = false;
+        _theme.TextColor = Color.Black;
+        UpdateBoldButton();
+        UpdateItalicButton();
+        UpdateUnderlineButton();
+        UpdateStrikethroughButton();
+        UpdateSubSuperButtons();
+        _fontColorButton.BackColor = Color.Black;
+        _fontColorButton.ForeColor = Color.White;
+        RefreshSlides();
+    }
+
+    private void ToggleBullets()
+    {
+        // Toggle bullet list formatting for the current paragraph
+        if (_lyricsBox.SelectionLength == 0) return;
+        var start = _lyricsBox.SelectionStart;
+        var text = _lyricsBox.Text;
+        var lineStart = text.LastIndexOf('\n', start - 1) + 1;
+        var lineEnd = text.IndexOf('\n', start);
+        if (lineEnd < 0) lineEnd = text.Length;
+        var line = text.Substring(lineStart, lineEnd - lineStart);
+        if (line.TrimStart().StartsWith("• "))
+            _lyricsBox.Text = text.Substring(0, lineStart) + line.Replace("• ", "", 1) + text.Substring(lineEnd);
+        else
+            _lyricsBox.Text = text.Substring(0, lineStart) + "• " + line.TrimStart() + text.Substring(lineEnd);
+        _lyricsBox.SelectionStart = start;
+        RebuildSlides();
+    }
+
+    private void ToggleNumbering()
+    {
+        // Toggle numbered list formatting for the current paragraph
+        if (_lyricsBox.SelectionLength == 0) return;
+        var start = _lyricsBox.SelectionStart;
+        var text = _lyricsBox.Text;
+        var lineStart = text.LastIndexOf('\n', start - 1) + 1;
+        var lineEnd = text.IndexOf('\n', start);
+        if (lineEnd < 0) lineEnd = text.Length;
+        var line = text.Substring(lineStart, lineEnd - lineStart);
+        if (System.Text.RegularExpressions.Regex.IsMatch(line.TrimStart(), @"^\d+\.\s"))
+            _lyricsBox.Text = text.Substring(0, lineStart) + System.Text.RegularExpressions.Regex.Replace(line.TrimStart(), @"^\d+\.\s", "") + text.Substring(lineEnd);
+        else
+            _lyricsBox.Text = text.Substring(0, lineStart) + "1. " + line.TrimStart() + text.Substring(lineEnd);
+        _lyricsBox.SelectionStart = start;
+        RebuildSlides();
+    }
+
+    private void AdjustIndent(int delta)
+    {
+        // Adjust indentation for the current selection
+        if (_lyricsBox.SelectionLength == 0) return;
+        var indent = new string(' ', Math.Max(0, (_lyricsBox.Text.Substring(0, _lyricsBox.SelectionStart).Split('\n').Last().TakeWhile(c => c == ' ').Count()) + delta));
+        // Simple implementation - full indent handling would be more complex
     }
 
     private void UpdateProjectorStatus()
