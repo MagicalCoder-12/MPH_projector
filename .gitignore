@@ -23,6 +23,7 @@ target/
 .idea/
 *.swp
 *.swo
+.hermes/
 
 # Logs and temp files
 *.log
@@ -63,4 +64,14 @@ htmlcov/
 *.tar.bz2
 *.tar.xz
 *.tar.zst
+# .NET build output
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
 ```
