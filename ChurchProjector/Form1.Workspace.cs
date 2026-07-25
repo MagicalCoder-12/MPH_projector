@@ -265,6 +265,22 @@ public partial class Form1
         return btn;
     }
 
+    private Control PreviewStyle(string name, Color background, Color foreground, Action action)
+    {
+        var panel = new Panel { Width = 72, Height = 48, BackColor = Color.White, Margin = new Padding(4), Cursor = Cursors.Hand };
+        var preview = new Panel { Width = 60, Height = 30, BackColor = background, Location = new Point(6, 8) };
+        var sample = new Label { Text = "Aa", ForeColor = foreground, Font = new Font("Segoe UI", 10F, FontStyle.Bold), AutoSize = true, Location = new Point((preview.Width - 18) / 2, (preview.Height - 16) / 2) };
+        preview.Controls.Add(sample);
+        panel.Controls.Add(preview);
+        var caption = new Label { Text = name, ForeColor = Color.FromArgb(77, 93, 111), Font = new Font("Segoe UI", 8F), AutoSize = true, Location = new Point(6, 38) };
+        panel.Controls.Add(caption);
+        panel.Click += (_, _) => action();
+        preview.Click += (_, _) => action();
+        sample.Click += (_, _) => action();
+        caption.Click += (_, _) => action();
+        return panel;
+    }
+
     private static void Add(Panel group, params Control[] controls) => ((FlowLayoutPanel)group.Tag!).Controls.AddRange(controls);
 
     private static Control Field(string label, Control input)

@@ -26,7 +26,7 @@ public partial class Form1
         tabBar.Controls.Add(backgroundTab);
         tabBar.Controls.Add(textTab);
 
-        var ribbonHost = new Panel { Dock = DockStyle.Top, Height = 150, BackColor = Color.White, Padding = new Padding(10, 8, 10, 8) };
+        var ribbonHost = new Panel { Dock = DockStyle.Top, Height = 120, BackColor = Color.White, Padding = new Padding(10, 8, 10, 8) };
         var textRibbon = BuildTextRibbon();
         var backgroundRibbon = BuildBackgroundRibbon();
         var bibleRibbon = BuildBibleRibbon();
@@ -160,10 +160,14 @@ public partial class Form1
         Add(layout, Field("Align", _alignment), Field("Max. lines", _maxLines), _autoFit, Hint("Blank lines start a new slide. Auto-fit scales text to fill the screen."));
 
         var style = RibbonGroup("Quick style", 270);
-        Add(style,
-            StyleButton("Light", Color.White, Color.FromArgb(28, 34, 45), () => SetTextStyle(Color.White, true)),
-            StyleButton("Warm", Color.FromArgb(255, 239, 171), Color.FromArgb(71, 48, 40), () => SetTextStyle(Color.FromArgb(255, 239, 171), true)),
-            StyleButton("Dark", Color.FromArgb(28, 40, 52), Color.FromArgb(232, 240, 245), () => SetTextStyle(Color.FromArgb(28, 40, 52), false)));
+        var tt = new ToolTip();
+        var lightPreview = PreviewStyle("Light", Color.White, Color.FromArgb(28, 34, 45), () => SetTextStyle(Color.White, true));
+        tt.SetToolTip(lightPreview, "Light text — white on dark background");
+        var warmPreview = PreviewStyle("Warm", Color.FromArgb(255, 239, 171), Color.FromArgb(71, 48, 40), () => SetTextStyle(Color.FromArgb(255, 239, 171), true));
+        tt.SetToolTip(warmPreview, "Warm text — warm cream with dark text");
+        var darkPreview = PreviewStyle("Dark", Color.FromArgb(28, 40, 52), Color.FromArgb(232, 240, 245), () => SetTextStyle(Color.FromArgb(28, 40, 52), false));
+        tt.SetToolTip(darkPreview, "Dark text — dark background with light text");
+        Add(style, lightPreview, warmPreview, darkPreview);
         ribbon.Controls.AddRange([font, layout, style]);
         return ribbon;
     }
