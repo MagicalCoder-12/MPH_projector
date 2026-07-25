@@ -16,7 +16,7 @@ public partial class Form1
         };
 
         // Left panel: Song Library
-        var libraryOuter = Section("Song library", "Your saved songs");
+        var libraryOuter = Section("Song library", "");
         var libraryContent = (TableLayoutPanel)libraryOuter.Tag!;
 
         // Two rows:
