@@ -6,44 +6,112 @@ public partial class Form1
     {
         var outer = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10, 10, 10, 12), BackColor = Color.FromArgb(241, 244, 247) };
 
-        // Left: library (narrow) | Right: editor (middle) + preview (right)
-        var mainSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
-        mainSplit.Panel1.MinimumSize = new Size(220, 0);
-        mainSplit.Panel2.MinimumSize = new Size(300, 0);
+        // Left: library  | Right: editor (middle) | verses + preview (right)
+        var mainSplit = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            Orientation = Orientation.Vertical,   
+            BackColor = Color.FromArgb(241, 244, 247),
+            SplitterWidth = 6
+        };
 
-        // Left panel: song library
+        // Left panel: Song Library
         var libraryOuter = Section("Song library", "Your saved songs");
         var libraryContent = (TableLayoutPanel)libraryOuter.Tag!;
-        libraryContent.RowCount = 3;
+
+        // Two rows:
+        // Row 0 = Search box
+        // Row 1 = Song list
+        libraryContent.RowCount = 2;
         libraryContent.RowStyles.Clear();
-        libraryContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        libraryContent.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        libraryContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        libraryContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // Search
+        libraryContent.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Song list fills remaining space
 
-        var addBtn = Button("+ New", _brand, Color.White, 62, 32);
-        addBtn.Click += (_, _) => NewSong();
-        libraryContent.Controls.Add(addBtn, 0, 0);
+        // Search box
+        _librarySearch = new TextBox
+        {
+            PlaceholderText = "Search songs",
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0, 0, 0, 6)
+        };
 
-        _librarySearch = new TextBox { PlaceholderText = "Search songs", Dock = DockStyle.Top, Margin = new Padding(0, 0, 0, 6) };
         _librarySearch.TextChanged += (_, _) => FilterLibrary(_librarySearch.Text);
         libraryContent.Controls.Add(_librarySearch, 0, 0);
 
-        _libraryList = new ListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 10F) };
-        _libraryList.DoubleClick += (_, _) => { if (_libraryList.SelectedItem is Song song) LoadSong(song); };
-        _libraryList.SelectedIndexChanged += (_, _) => { if (!_updating && _libraryList.SelectedItem is Song s) LoadSong(s); };
+        // Song list
+        _libraryList = new ListBox
+        {
+            Dock = DockStyle.Fill,
+            BorderStyle = BorderStyle.FixedSingle,
+            IntegralHeight = false,
+            Font = new Font("Segoe UI", 10F),
+            Margin = new Padding(0)
+        };
+
+        _libraryList.DoubleClick += (_, _) =>
+        {
+            if (_libraryList.SelectedItem is Song song)
+                LoadSong(song);
+        };
+
+        _libraryList.SelectedIndexChanged += (_, _) =>
+        {
+            if (!_updating && _libraryList.SelectedItem is Song s)
+                LoadSong(s);
+        };
+
         libraryContent.Controls.Add(_libraryList, 0, 1);
 
-        libraryContent.Controls.Add(SmallLabel("Double-click or select a song"), 0, 2);
+        // Add the library section to the left panel
         mainSplit.Panel1.Controls.Add(libraryOuter);
 
-        // Right panel: editor (left) + preview (right), stacked vertically
-        var rightSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
-        rightSplit.Panel1.Controls.Add(BuildEditorPanel());
-        rightSplit.Panel2.Controls.Add(BuildPreviewPanel());
-        LayoutSplit(rightSplit, outer, 0.55f);
-        mainSplit.Panel2.Controls.Add(rightSplit);
 
+        var rightSplit = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            Orientation = Orientation.Vertical,
+            BackColor = Color.FromArgb(241, 244, 247),
+            SplitterWidth = 6
+        };
+
+        // Middle column
+        rightSplit.Panel1.Controls.Add(BuildEditorPanel());
+
+        // Right column (Verses + Preview)
+        var previewSplit = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            Orientation = Orientation.Horizontal,
+            BackColor = Color.FromArgb(241, 244, 247),
+            SplitterWidth = 6
+        };
+
+        previewSplit.Panel1.Controls.Add(BuildSlidesPanel());
+        previewSplit.Panel2.Controls.Add(BuildPreviewPanel());
+
+        rightSplit.Panel2.Controls.Add(previewSplit);
+
+        LayoutSplit(rightSplit, rightSplit.Panel2, 0.65f);
+        LayoutSplit(previewSplit, previewSplit.Panel2, 0.40f);
+            
+        mainSplit.Panel2.Controls.Add(rightSplit);
         outer.Controls.Add(mainSplit);
+        return outer;
+    }  
+
+    private Control BuildSlidesPanel()
+    {
+        var outer = Section("Slides / Verses", "Select a slide to preview");
+        var content = (TableLayoutPanel)outer.Tag!;
+        content.RowCount = 2;
+        content.RowStyles.Clear();
+        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        content.Controls.Add(SmallLabel("SLIDES"), 0, 0);
+        _slideList = new ListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 9.5F), Margin = new Padding(0) };
+        _slideList.SelectedIndexChanged += (_, _) => { if (!_updating && _slideList.SelectedIndex >= 0) SelectSlide(_slideList.SelectedIndex); };
+        content.Controls.Add(_slideList, 0, 1);
         return outer;
     }
 
@@ -101,7 +169,7 @@ public partial class Form1
     {
         var outer = Section("Song editor", "Edit lyrics — slides update as you type");
         var content = (TableLayoutPanel)outer.Tag!;
-        content.RowCount = 7;
+        content.RowCount = 5;
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -121,17 +189,13 @@ public partial class Form1
         content.Controls.Add(songActions, 0, 0);
         content.Controls.Add(SmallLabel("SONG TITLE"), 0, 1);
         _titleBox = new TextBox { Dock = DockStyle.Top, Font = new Font("Segoe UI", 12F, FontStyle.Bold), Margin = new Padding(0, 0, 0, 8) };
-        _titleBox.TextChanged += (_, _) => _slideStatus.Text = "Editing · " + (string.IsNullOrWhiteSpace(_titleBox.Text) ? "Untitled song" : _titleBox.Text);
+        _titleBox.TextChanged += (_, _) => { if (_slideStatus is not null) _slideStatus.Text = "Editing · " + (string.IsNullOrWhiteSpace(_titleBox.Text) ? "Untitled song" : _titleBox.Text); };
         content.Controls.Add(_titleBox, 0, 2);
         _lyricsBox = new RichTextBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, Font = new Font("Segoe UI", 12F), AcceptsTab = true, Margin = new Padding(0, 0, 0, 8) };
         _lyricsBox.TextChanged += (_, _) => { if (!_updating) RebuildSlides(); };
         content.Controls.Add(_lyricsBox, 0, 3);
-        content.Controls.Add(SmallLabel("SLIDES - press 1 to 9 to jump to a verse"), 0, 4);
-        _slideList = new ListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 9.5F), Margin = new Padding(0, 0, 0, 6) };
-        _slideList.SelectedIndexChanged += (_, _) => { if (!_updating && _slideList.SelectedIndex >= 0) SelectSlide(_slideList.SelectedIndex); };
-        content.Controls.Add(_slideList, 0, 5);
         _slideStatus = new Label { ForeColor = Color.FromArgb(88, 103, 120), AutoSize = true, Margin = new Padding(0, 2, 0, 0) };
-        content.Controls.Add(_slideStatus, 0, 6);
+        content.Controls.Add(_slideStatus, 0, 4);
         return outer;
     }
 
