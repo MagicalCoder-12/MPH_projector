@@ -14,6 +14,7 @@ public partial class Form1 : Form
     private readonly List<string> _slides = [];
     private readonly List<int> _verseSlideIndexes = [];
     private TextBox _librarySearch = null!;
+    private MongoDbService? _mongoDb;
 
     private RichTextBox _lyricsBox = null!;
     private TextBox _titleBox = null!;
@@ -109,6 +110,7 @@ public partial class Form1 : Form
         RestoreBackgroundPreferences();
         LoadLogoImage();
         BuildInterface();
+        _ = LoadSongsFromMongoAsync();
         UpdateBoldButton();
         UpdateProjectorStatus();
         UpdateStageStatus();
@@ -150,6 +152,45 @@ public partial class Form1 : Form
         try { _logoImage = Image.FromFile(logoPath); }
         catch { _logoImage = null; }
         Persist();
+    }
+
+    private async Task LoadSongsFromMongoAsync()
+    {
+        if (!_data.Sync.UseMongoDb || _mongoDb is not null) return;
+        try
+        {
+            _mongoDb = new MongoDbService(_data.Sync.MongoDbConnectionString);
+            var remoteSongs = await _mongoDb.GetAllSongsAsync();
+            var bySourceId = remoteSongs
+                .Where(s => !string.IsNullOrEmpty(s.Id))
+                .ToDictionary(s => s.Id, s => s, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var remote in bySourceId.Values)
+            {
+                var existing = _library.FirstOrDefault(s => s.SourceId == remote.Id);
+                if (existing is null)
+                {
+                    _library.Add(new Song
+                    {
+                        SourceId = remote.Id,
+                        Title = remote.Title,
+                        Lyrics = remote.Lyrics
+                    });
+                }
+                else if (string.Equals(remote.Source, "web", StringComparison.OrdinalIgnoreCase))
+                {
+                    existing.Title = remote.Title;
+                    existing.Lyrics = remote.Lyrics;
+                }
+            }
+
+            Persist();
+            FilterLibrary(_librarySearch?.Text ?? string.Empty);
+        }
+        catch
+        {
+            _mongoDb = null;
+        }
     }
 
     private void LoadSong(Song song)

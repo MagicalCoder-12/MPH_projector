@@ -2,13 +2,7 @@ namespace ChurchProjector;
 
 public partial class Form1
 {
-    private void NewSong()
-    {
-        LoadSongContent("", "", null, "New song");
-        _titleBox.Focus();
-    }
-
-    private void SaveCurrentSong()
+    private async void SaveCurrentSong()
     {
         var title = _titleBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(title))
@@ -31,9 +25,42 @@ public partial class Form1
         FilterLibrary("");
         if (_libraryList is not null) _libraryList.SelectedItem = song;
         _slideStatus.Text = "Saved - " + song.Title;
+
+        if (_data.Sync.UseMongoDb && _mongoDb is not null)
+        {
+            try
+            {
+                var mongoSong = ToMongoSong(song);
+                if (song.SourceId is null)
+                {
+                    mongoSong.Tags = ["church"];
+                    mongoSong.Desktop = "true";
+                    mongoSong.Source = "desktop";
+                    var created = await _mongoDb.CreateSongAsync(mongoSong);
+                    song.SourceId = created.Id;
+                    Persist();
+                }
+                else
+                {
+                    var existing = await _mongoDb.GetSongByIdAsync(song.SourceId);
+                    if (existing is not null && string.Equals(existing.Source, "web", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _slideStatus.Text = "Saved locally only (web-owned)";
+                    }
+                    else
+                    {
+                        await _mongoDb.UpdateSongAsync(song.SourceId, mongoSong);
+                    }
+                }
+            }
+            catch
+            {
+                // ignore sync failure; local save already succeeded
+            }
+        }
     }
 
-    private void DeleteCurrentSong()
+    private async void DeleteCurrentSong()
     {
         var song = _currentSongId is Guid id ? _library.FirstOrDefault(item => item.Id == id) : null;
         if (song is null)
@@ -46,7 +73,41 @@ public partial class Form1
         Persist();
         FilterLibrary("");
         NewSong();
+
+        if (_data.Sync.UseMongoDb && _mongoDb is not null && song.SourceId is not null)
+        {
+            try
+            {
+                await _mongoDb.DeleteSongAsync(song.SourceId);
+            }
+            catch
+            {
+                // ignore sync failure; local delete already succeeded
+            }
+        }
     }
+
+    private void NewSong()
+    {
+        LoadSongContent("", "", null, "New song");
+        _titleBox.Focus();
+    }
+
+    private static MongoSong ToMongoSong(Song song) => new()
+    {
+        Id = song.SourceId ?? string.Empty,
+        Title = song.Title,
+        Lyrics = song.Lyrics,
+        SongLanguage = "Telugu",
+        IsChoirPractice = false,
+        IsChristmasSong = false,
+        Tags = ["church"],
+        Web = null,
+        Desktop = "true",
+        Source = "desktop",
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+    };
 
     private void RefreshAgenda()
     {
