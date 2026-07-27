@@ -10,6 +10,14 @@ public sealed class AppData
     public List<BibleTranslation> Bibles { get; set; } = [];
     public List<BackgroundAsset> Backgrounds { get; set; } = [];
     public BackgroundPreferences BackgroundPreferences { get; set; } = new();
+    public AppSyncPreferences Sync { get; set; } = new();
+}
+
+public sealed class AppSyncPreferences
+{
+    public string MongoDbConnectionString { get; set; } =
+        Environment.GetEnvironmentVariable("MPH_MONGODB_URI") ?? string.Empty;
+    public bool UseMongoDb => !string.IsNullOrEmpty(MongoDbConnectionString);
 }
 
 public sealed class BackgroundAsset
@@ -41,6 +49,7 @@ public sealed class Song
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Title { get; set; } = "";
     public string Lyrics { get; set; } = "";
+    public string? SourceId { get; set; }
     public override string ToString() => Title;
 }
 
