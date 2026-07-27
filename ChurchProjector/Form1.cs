@@ -327,7 +327,7 @@ public partial class Form1 : Form
         if (lineEnd < 0) lineEnd = text.Length;
         var line = text.Substring(lineStart, lineEnd - lineStart);
         if (line.TrimStart().StartsWith("• "))
-            _lyricsBox.Text = text.Substring(0, lineStart) + line.Replace("• ", "", 1) + text.Substring(lineEnd);
+            _lyricsBox.Text = text.Substring(0, lineStart) + line.Replace("• ", "", StringComparison.Ordinal) + text.Substring(lineEnd);
         else
             _lyricsBox.Text = text.Substring(0, lineStart) + "• " + line.TrimStart() + text.Substring(lineEnd);
         _lyricsBox.SelectionStart = start;
