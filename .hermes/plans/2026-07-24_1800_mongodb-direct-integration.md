@@ -106,7 +106,7 @@ public class MongoSong
     public string Lyrics { get; set; } = string.Empty;
     public bool IsChoirPractice { get; set; }
     public bool IsChristmasSong { get; set; }
-    public List<string> Tags { get; set; } = [];
+    public List<string> Tags { get; set; } = ["church"];
     public string? Web { get; set; }       // null or "true" — set when created via web app
     public string? Desktop { get; set; }    // null or "true" — set when created via projector
     public string Source { get; set; } = "desktop";     // "desktop" or "web"
@@ -116,10 +116,9 @@ public class MongoSong
 ```
 
 **Field convention:**
-- Projector creates songs with `Desktop = "true"`, `Source = "desktop"` — web app ignores this field
-- Web app creates songs with `Web = "true"`, `Source = "web"` — projector can filter by `Desktop` field
-- The `tags` array is left empty by the projector (web app manages its own tags)
-- `web` and `desktop` fields are for query/filtering only; `tags` remains for the web app's existing UI filters
+- Projector creates songs with `Tags = ["church"]`, `Desktop = "true"`, `Source = "desktop"` — web app can filter by `church` tag
+- Web app creates songs with `Web = "true"`, `Source = "web"` — projector ignores web tags
+- `tags` array carries the projector's `church` tag for web app filtering; web app manages its own tags independently
 
 **Verification:**
 - Build passes (no compilation errors)
