@@ -1,5 +1,6 @@
 namespace ChurchProjector;
 
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 public class MongoDbService : IDisposable
@@ -8,10 +9,20 @@ public class MongoDbService : IDisposable
     private readonly IMongoDatabase _database;
     private MongoClient? _client;
 
-    public MongoDbService(string connectionString, string databaseName = "mphongs")
+    public MongoDbService(string connectionString, string? databaseName = null)
     {
-        _client = new MongoClient(connectionString);
-        _database = _client.GetDatabase(databaseName);
+        var settings = MongoClientSettings.FromConnectionString(connectionString);
+        settings.ServerSelectionTimeout = TimeSpan.FromSeconds(10);
+        settings.ConnectTimeout = TimeSpan.FromSeconds(10);
+        settings.SocketTimeout = TimeSpan.FromSeconds(30);
+        _client = new MongoClient(settings);
+        // Extract database name from URI if present (e.g. mongodb+srv://...@host/song_lyrics?...)
+        if (string.IsNullOrWhiteSpace(databaseName))
+        {
+            var mongoUrl = new MongoUrl(connectionString);
+            databaseName = mongoUrl.DatabaseName;
+        }
+        _database = _client.GetDatabase(string.IsNullOrWhiteSpace(databaseName) ? "song_lyrics" : databaseName);
         _songs = _database.GetCollection<MongoSong>("songs");
     }
 

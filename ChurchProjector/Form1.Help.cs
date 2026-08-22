@@ -17,7 +17,15 @@ public partial class Form1
         var import = Button("Import", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 90, 34);
         import.Click += (_, _) => ImportLibrary();
         Add(backup, export, import, Hint("Export a .mphbundle to move your whole library to another computer."));
-        ribbon.Controls.AddRange([start, keyboard, storage, backup]);
+        var sync = RibbonGroup("Cloud sync", 420);
+        var syncStatus = Button("Check connection", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 120, 34);
+        syncStatus.Click += (_, _) => CheckMongoConnection();
+        var syncConfig = Button("Set URI", _brand, Color.White, 80, 34);
+        syncConfig.Click += (_, _) => SetMongoUri();
+        var syncRefresh = Button("Refresh now", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 95, 34);
+        syncRefresh.Click += async (_, _) => await SyncFromMongoAsync();
+        Add(sync, syncConfig, syncStatus, syncRefresh, Hint("Connect to MongoDB Atlas to share songs with mph-songs.vercel.app. Set the Atlas URI, then check connection."));
+        ribbon.Controls.AddRange([start, keyboard, storage, backup, sync]);
         return ribbon;
     }
 
@@ -123,6 +131,12 @@ PROJECTOR
 BACKUP
 - On the Help tab, Export bundles the whole library (songs, Bibles, agenda, backgrounds, and logo) into a .mphbundle file.
 - Import restores a .mphbundle on another computer, replacing the current library.
+
+CLOUD SYNC
+- Songs can be shared with the MPH Songs web app (mph-songs.vercel.app) via MongoDB Atlas.
+- Set URI on the Help ribbon to enter your Atlas connection string, then Check connection to verify.
+- Songs created in the projector appear on the web app within 60 seconds. Songs from the web app appear in the projector.
+- If the connection fails, the app works fully offline with the local library.
 
 SAVED DATA
 Songs, agenda entries, and Bible records are saved to the local MPH Songs library on this computer. Back up this file before moving to another computer.

@@ -26,7 +26,7 @@ public partial class Form1
         tabBar.Controls.Add(backgroundTab);
         tabBar.Controls.Add(textTab);
 
-        var ribbonHost = new Panel { Dock = DockStyle.Top, Height = 120, BackColor = Color.White, Padding = new Padding(10, 8, 10, 8) };
+        var ribbonHost = new Panel { Dock = DockStyle.Top, Height = 160, BackColor = Color.White, Padding = new Padding(10, 8, 10, 8) };
         var textRibbon = BuildTextRibbon();
         var backgroundRibbon = BuildBackgroundRibbon();
         var bibleRibbon = BuildBibleRibbon();
@@ -76,7 +76,8 @@ public partial class Form1
         _statusSlide = new ToolStripStatusLabel("Slide 1 of 1") { ForeColor = Color.White, BorderSides = border };
         _statusProjector = new ToolStripStatusLabel("Projector: off") { ForeColor = Color.White, BorderSides = border };
         _statusClock = new ToolStripStatusLabel(DateTime.Now.ToShortTimeString()) { ForeColor = Color.White, Spring = true, TextAlign = ContentAlignment.MiddleRight };
-        _statusBar.Items.AddRange([_statusTab, _statusSlide, _statusProjector, _statusClock]);
+        _statusSync = new ToolStripStatusLabel(_data.Sync.UseMongoDb ? "\u25cb Connecting..." : "\u25cb Local mode") { ForeColor = _data.Sync.UseMongoDb ? Color.FromArgb(255, 220, 120) : Color.FromArgb(180, 180, 180), BorderSides = border };
+        _statusBar.Items.AddRange([_statusTab, _statusSlide, _statusProjector, _statusSync, _statusClock]);
         return _statusBar;
     }
 
@@ -131,7 +132,7 @@ public partial class Form1
         var ribbon = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, AutoScroll = true, BackColor = Color.White };
         
         // Clipboard group (Cut, Copy, Paste)
-        var clipboard = RibbonGroup("Clipboard", 140);
+        var clipboard = RibbonGroup("Clipboard", 160);
         _cutButton = Button("✂", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
         _cutButton.Font = new Font("Segoe UI", 10F);
         _cutButton.Click += (_, _) => { if (_lyricsBox.SelectedText.Length > 0) Clipboard.SetText(_lyricsBox.SelectedText); _lyricsBox.SelectedText = ""; };
@@ -144,7 +145,7 @@ public partial class Form1
         Add(clipboard, _cutButton, _copyButton, _pasteButton);
 
         // Font group - comprehensive font controls like Word
-        var font = RibbonGroup("Font", 420);
+        var font = RibbonGroup("Font", 540);
         _fontFamily = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 180 };
         var fonts = new List<string> { "Segoe UI", "Arial", "Calibri", "Cambria", "Georgia", "Verdana", "Trebuchet MS", "Times New Roman", "Tahoma", "Century Gothic" };
         // Telugu fonts that support Telugu script rendering
@@ -197,7 +198,7 @@ public partial class Form1
         Add(font, _fontFamily, _fontSize, _boldButton, _italicButton, _underlineButton, _strikethroughButton, _subscriptButton, _superscriptButton, _fontColorButton, _highlightColorButton, _clearFormattingButton);
 
         // Paragraph group - alignment and spacing
-        var paragraph = RibbonGroup("Paragraph", 290);
+        var paragraph = RibbonGroup("Paragraph", 380);
         _alignment = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 105 };
         _alignment.Items.AddRange(["Left", "Centre", "Right", "Justify"]);
         _alignment.SelectedItem = "Centre";
@@ -228,7 +229,7 @@ public partial class Form1
         Add(paragraph, Field("Align", _alignment), _bulletsButton, _numberingButton, _decreaseIndentButton, _increaseIndentButton, Field("Spacing", _lineSpacing), Field("Max lines", _maxLines));
 
         // Styles group - quick text styles
-        var styles = RibbonGroup("Styles", 320);
+        var styles = RibbonGroup("Styles", 370);
         var tt = new ToolTip();
         var lightPreview = PreviewStyle("Light", Color.White, Color.FromArgb(28, 34, 45), () => SetTextStyle(Color.White, true));
         tt.SetToolTip(lightPreview, "Light text — white on dark background");
@@ -239,8 +240,28 @@ public partial class Form1
         var titlePreview = PreviewStyle("Title", Color.FromArgb(255, 210, 64), Color.FromArgb(22, 34, 52), () => SetTextStyle(Color.FromArgb(255, 210, 64), true));
         tt.SetToolTip(titlePreview, "Title style — golden accent color");
         Add(styles, lightPreview, warmPreview, darkPreview, titlePreview);
-        
-        ribbon.Controls.AddRange([clipboard, font, paragraph, styles]);
+
+        // Cloud Sync group
+        var sync = RibbonGroup("Cloud sync", 260);
+        var syncNow = Button("\u21bb  Sync now", _brand, Color.White, 100, 34);
+        syncNow.Click += async (_, _) =>
+        {
+            syncNow.Enabled = false;
+            syncNow.Text = "\u21bb  Syncing...";
+            try
+            {
+                await SyncFromMongoAsync();
+                _slideStatus.Text = _lastSyncFailed ? $"Sync failed: {_syncError ?? "check connection"}" : "Synced with cloud";
+            }
+            finally
+            {
+                syncNow.Text = "\u21bb  Sync now";
+                syncNow.Enabled = true;
+            }
+        };
+        Add(sync, syncNow, Hint(_data.Sync.UseMongoDb ? "Pull web songs and push local songs to MongoDB Atlas." : "Set MongoDB URI in Help tab to enable cloud sync."));
+
+        ribbon.Controls.AddRange([clipboard, font, paragraph, styles, sync]);
         return ribbon;
     }
 

@@ -2,15 +2,44 @@ namespace ChurchProjector;
 
 static class Program
 {
-    /// <summary>
-    ///  The main entry point for the application.
-    /// </summary>
+    private static readonly string CrashLog = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "MPH Songs", "crash.log");
+
     [STAThread]
     static void Main()
     {
-        // To customize application configuration such as set high DPI settings or default font,
-        // see https://aka.ms/applicationconfiguration.
+        Directory.CreateDirectory(Path.GetDirectoryName(CrashLog)!);
+
+        Application.ThreadException += (_, e) =>
+        {
+            File.AppendAllText(CrashLog,
+                $"[{DateTime.Now}] ThreadException: {e.Exception.Message}\n{e.Exception.StackTrace}\n\n");
+        };
+
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            if (e.ExceptionObject is Exception ex)
+                File.AppendAllText(CrashLog,
+                    $"[{DateTime.Now}] UnhandledException: {ex.Message}\n{ex.StackTrace}\n\n");
+        };
+
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            File.AppendAllText(CrashLog,
+                $"[{DateTime.Now}] TaskException: {e.Exception.Message}\n{e.Exception.StackTrace}\n\n");
+        };
+
         ApplicationConfiguration.Initialize();
-        Application.Run(new Form1());
-    }    
+        try
+        {
+            Application.Run(new Form1());
+        }
+        catch (Exception ex)
+        {
+            File.AppendAllText(CrashLog,
+                $"[{DateTime.Now}] MainException: {ex.Message}\n{ex.StackTrace}\n\n");
+            MessageBox.Show($"Startup error: {ex.Message}", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
 }

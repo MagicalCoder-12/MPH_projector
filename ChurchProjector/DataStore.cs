@@ -86,6 +86,9 @@ public sealed class LocalDataStore
     private readonly string _filePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "MPH Songs", "library.json");
+    private readonly string _settingsPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "MPH Songs", "settings.json");
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true, PropertyNameCaseInsensitive = true };
     private string BackgroundRoot => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -99,8 +102,14 @@ public sealed class LocalDataStore
     {
         try
         {
-            if (!File.Exists(_filePath)) return new AppData();
-            return JsonSerializer.Deserialize<AppData>(File.ReadAllText(_filePath), Options) ?? new AppData();
+            var data = File.Exists(_filePath)
+                ? JsonSerializer.Deserialize<AppData>(File.ReadAllText(_filePath), Options)
+                : null;
+            if (data is null) data = new AppData();
+            var settings = LoadSettings();
+            if (!string.IsNullOrEmpty(settings.MongoDbConnectionString))
+                data.Sync.MongoDbConnectionString = settings.MongoDbConnectionString;
+            return data;
         }
         catch
         {
@@ -123,6 +132,29 @@ public sealed class LocalDataStore
             try { File.WriteAllText(_filePath, JsonSerializer.Serialize(data, Options)); }
             catch { throw new IOException($"Could not save library to {_filePath}: {ex.Message}", ex); }
         }
+    }
+
+    public AppSyncPreferences LoadSettings()
+    {
+        try
+        {
+            if (!File.Exists(_settingsPath)) return new AppSyncPreferences();
+            return JsonSerializer.Deserialize<AppSyncPreferences>(File.ReadAllText(_settingsPath), Options) ?? new AppSyncPreferences();
+        }
+        catch
+        {
+            return new AppSyncPreferences();
+        }
+    }
+
+    public void SaveSettings(AppSyncPreferences settings)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_settingsPath)!);
+            File.WriteAllText(_settingsPath, JsonSerializer.Serialize(settings, Options));
+        }
+        catch { }
     }
 
     public string Serialize(AppData data) => JsonSerializer.Serialize(data, Options);
