@@ -263,14 +263,99 @@ public partial class Form1
 
     private Panel RibbonGroup(string title, int width)
     {
-        var group = new Panel { Width = width, Height = 130, Margin = new Padding(0, 0, 8, 0), Padding = new Padding(9, 28, 9, 22), BackColor = Color.White };
-        group.Paint += (_, e) => { using var pen = new Pen(_panelBorder); e.Graphics.DrawLine(pen, group.Width - 1, 28, group.Width - 1, group.Height - 4); };
-        var label = new Label { Text = title.ToUpperInvariant(), ForeColor = Color.FromArgb(77, 93, 111), Font = new Font("Segoe UI", 9F, FontStyle.Bold), AutoSize = true, Location = new Point(10, 6) };
-        var items = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, AutoSize = false, BackColor = Color.White, Padding = new Padding(6, 6, 6, 6) };
+        var group = new Panel { Width = width, Height = 128, Margin = new Padding(4, 6, 4, 0), BackColor = Color.White };
+        group.Paint += (_, e) =>
+        {
+            using var pen = new Pen(Color.FromArgb(221, 227, 234));
+            e.Graphics.DrawLine(pen, group.Width - 1, 14, group.Width - 1, group.Height - 18);
+        };
+        var caption = new Label
+        {
+            Text = title,
+            Dock = DockStyle.Bottom,
+            Height = 17,
+            TextAlign = ContentAlignment.BottomRight,
+            ForeColor = Color.FromArgb(107, 118, 131),
+            Font = new Font("Segoe UI", 8F),
+            BackColor = Color.White,
+            Padding = new Padding(0, 0, 8, 2)
+        };
+        var items = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            WrapContents = true,
+            AutoSize = false,
+            BackColor = Color.White,
+            Padding = new Padding(8, 10, 8, 4)
+        };
         group.Controls.Add(items);
-        group.Controls.Add(label);
+        group.Controls.Add(caption);
         group.Tag = items;
         return group;
+    }
+
+    private RibbonIconButton RibbonButton(RibbonGlyph glyph, string caption, int width, int height)
+        => new() { Glyph = glyph, Text = caption, Width = width, Height = height };
+
+    private RibbonIconButton AlignButton(RibbonGlyph glyph, string tip)
+    {
+        var button = new RibbonIconButton { Glyph = glyph, Width = 28, Height = 40, Margin = new Padding(0, 0, 4, 0) };
+        var tipService = new ToolTip();
+        tipService.SetToolTip(button, tip);
+        return button;
+    }
+
+    private Button ToggleStyleButton(string text, Font font, string tip)
+    {
+        var button = new Button
+        {
+            Text = text,
+            Width = 28,
+            Height = 28,
+            Font = font,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = RibbonIconButton.IdleBack,
+            ForeColor = RibbonIconButton.IdleInk,
+            FlatAppearance = { BorderSize = 1, BorderColor = RibbonIconButton.IdleBorder },
+            Cursor = Cursors.Hand,
+            UseVisualStyleBackColor = false,
+            Margin = new Padding(0, 0, 4, 0),
+            Tag = false
+        };
+        var tipService = new ToolTip();
+        tipService.SetToolTip(button, tip);
+        button.MouseEnter += (_, _) => button.BackColor = button.Tag is true ? RibbonIconButton.ActiveBack : RibbonIconButton.HoverBack;
+        button.MouseLeave += (_, _) => button.BackColor = button.Tag is true ? RibbonIconButton.ActiveBack : RibbonIconButton.IdleBack;
+        return button;
+    }
+
+    private static Button RibbonActionButton(string text, Color background, Color foreground, int width, int height)
+    {
+        var button = new Button
+        {
+            Text = text,
+            Width = width,
+            Height = height,
+            BackColor = background,
+            ForeColor = foreground,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+            Cursor = Cursors.Hand,
+            UseVisualStyleBackColor = false,
+            Margin = new Padding(0, 0, 6, 0),
+            Padding = new Padding(4, 0, 4, 0)
+        };
+        button.FlatAppearance.BorderColor = ControlPaint.Dark(background, 0.15F);
+        button.FlatAppearance.MouseOverBackColor = ControlPaint.Light(background, 0.12F);
+        return button;
+    }
+
+    private static Control MiniField(string label, Control input)
+    {
+        var panel = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, Margin = new Padding(0, 0, 8, 0) };
+        panel.Controls.Add(new Label { Text = label, ForeColor = Color.FromArgb(86, 99, 114), Font = new Font("Segoe UI", 7F), AutoSize = true, Margin = new Padding(2, 2, 0, 2) });
+        panel.Controls.Add(input);
+        return panel;
     }
 
     private Button StyleButton(string label, Color background, Color foreground, Action action)
@@ -284,12 +369,12 @@ public partial class Form1
 
     private Control PreviewStyle(string name, Color background, Color foreground, Action action)
     {
-        var panel = new Panel { Width = 72, Height = 56, BackColor = Color.White, Margin = new Padding(4), Cursor = Cursors.Hand };
-        var preview = new Panel { Width = 60, Height = 30, BackColor = background, Location = new Point(6, 8) };
+        var panel = new Panel { Width = 58, Height = 56, BackColor = Color.White, Margin = new Padding(3, 0, 3, 0), Cursor = Cursors.Hand };
+        var preview = new Panel { Width = 52, Height = 28, BackColor = background, BorderStyle = BorderStyle.FixedSingle, Location = new Point(3, 4) };
         var sample = new Label { Text = "Aa", ForeColor = foreground, Font = new Font("Segoe UI", 10F, FontStyle.Bold), AutoSize = true, Location = new Point((preview.Width - 18) / 2, (preview.Height - 16) / 2) };
         preview.Controls.Add(sample);
         panel.Controls.Add(preview);
-        var caption = new Label { Text = name, ForeColor = Color.FromArgb(77, 93, 111), Font = new Font("Segoe UI", 8F), AutoSize = true, Location = new Point(6, 38) };
+        var caption = new Label { Text = name, ForeColor = Color.FromArgb(107, 118, 131), Font = new Font("Segoe UI", 7.5F), AutoSize = true, Location = new Point(3, 34) };
         panel.Controls.Add(caption);
         panel.Click += (_, _) => action();
         preview.Click += (_, _) => action();
@@ -308,12 +393,49 @@ public partial class Form1
         return panel;
     }
 
-    private Button TabButton(string text, bool active) => new()
+    private Button TabButton(string text, bool active)
     {
-        Text = text, Width = 112, FlatStyle = FlatStyle.Flat, BackColor = active ? Color.White : _darkBrand,
-        ForeColor = active ? _darkBrand : Color.White, Font = new Font("Segoe UI", 9F, FontStyle.Bold), Cursor = Cursors.Hand,
-        FlatAppearance = { BorderSize = 0 }
-    };
+        var boldFont = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        var regularFont = new Font("Segoe UI", 9.5F, FontStyle.Regular);
+        var measured = TextRenderer.MeasureText(text, boldFont);
+        var button = new Button
+        {
+            Text = text,
+            Width = Math.Max(64, measured.Width + 28),
+            Height = 34,
+            Margin = new Padding(0, 0, 8, 0),
+            FlatStyle = FlatStyle.Flat,
+            FlatAppearance = { BorderSize = 0 },
+            BackColor = Color.White,
+            ForeColor = active ? _brand : Color.FromArgb(59, 73, 90),
+            Font = active ? boldFont : regularFont,
+            Cursor = Cursors.Hand,
+            UseVisualStyleBackColor = false,
+            Tag = active
+        };
+        button.Paint += (_, e) =>
+        {
+            if (button.Tag is true)
+            {
+                using var brush = new SolidBrush(_brand);
+                e.Graphics.FillRectangle(brush, 0, button.Height - 2, button.Width, 2);
+            }
+        };
+        button.MouseEnter += (_, _) => { if (button.Tag is not true) button.BackColor = Color.FromArgb(240, 245, 250); };
+        button.MouseLeave += (_, _) => { if (button.Tag is not true) button.BackColor = Color.White; };
+        return button;
+    }
+
+    private void SetTabState(Button button, bool active)
+    {
+        button.Tag = active;
+        button.BackColor = Color.White;
+        button.ForeColor = active ? _brand : Color.FromArgb(59, 73, 90);
+        var previous = button.Font;
+        button.Font = new Font("Segoe UI", 9.5F, active ? FontStyle.Bold : FontStyle.Regular);
+        previous?.Dispose();
+        button.Invalidate();
+    }
 
     private static Button Button(string text, Color background, Color foreground, int width, int height) => new()
     {
