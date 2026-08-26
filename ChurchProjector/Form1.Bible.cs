@@ -14,23 +14,38 @@ public partial class Form1
     ];
     private Control BuildBibleRibbon()
     {
-        var ribbon = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, AutoScroll = true, BackColor = Color.White };
-        var library = RibbonGroup("Bible library", 355);
-        var newBible = Button("+ New Bible", _brand, Color.White, 94, 34);
-        newBible.Click += (_, _) => NewBible();
-        var import = Button("Import JSON", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 102, 34);
-        import.Click += (_, _) => ImportBible();
-        var delete = Button("Delete Bible", Color.White, Color.FromArgb(177, 59, 54), 98, 34);
-        delete.Click += (_, _) => DeleteCurrentBible();
-        Add(library, newBible, import, delete, Hint("Import a Bible translation stored as JSON."));
+        var ribbon = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, AutoScroll = false, BackColor = Color.White, Padding = new Padding(8, 4, 8, 4) };
 
-        var present = RibbonGroup("Present", 280);
-        var show = Button("Show selected verse", Color.FromArgb(35, 157, 87), Color.White, 145, 34);
+        // Library group
+        var library = RibbonGroup("Library", 230);
+        var newBible = RibbonButton(RibbonGlyph.NewDocument, "New Bible", 64, 54);
+        newBible.Click += (_, _) => NewBible();
+        var import = RibbonButton(RibbonGlyph.Import, "Import", 64, 54);
+        import.Click += (_, _) => ImportBible();
+        var delete = RibbonButton(RibbonGlyph.Delete, "Delete", 64, 54);
+        delete.Click += (_, _) => DeleteCurrentBible();
+        var libraryTip = new ToolTip();
+        libraryTip.SetToolTip(newBible, "Start a new Bible translation");
+        libraryTip.SetToolTip(import, "Import a Bible from a JSON or SQLite .db file");
+        libraryTip.SetToolTip(delete, "Delete the current Bible translation");
+        Add(library, newBible, import, delete);
+
+        // Agenda group
+        var agenda = RibbonGroup("Agenda", 136);
+        var addVerse = RibbonButton(RibbonGlyph.AddAgenda, "Add verse", 64, 54);
+        addVerse.Click += (_, _) => AddSelectedBibleVerseToAgenda();
+        Add(agenda, addVerse, Hint("Add the selected verses to the service agenda."));
+
+        // Present group
+        var present = RibbonGroup("Present", 164);
+        var show = RibbonActionButton("Show selected verse", Color.FromArgb(35, 157, 87), Color.White, 138, 30);
+        show.Margin = new Padding(0, 0, 6, 8);
         show.Click += (_, _) => ShowSelectedBibleVerse();
-        var projector = Button("Open projector", Color.White, Color.FromArgb(31, 48, 68), 110, 34);
+        var projector = RibbonActionButton("Open projector", _brand, Color.White, 138, 30);
         projector.Click += (_, _) => ToggleProjector();
         Add(present, show, projector, Hint("The selected verse is shown in the preview."));
-        ribbon.Controls.AddRange([library, present]);
+
+        ribbon.Controls.AddRange([library, agenda, present]);
         return ribbon;
     }
 

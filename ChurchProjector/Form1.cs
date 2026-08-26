@@ -26,7 +26,7 @@ public partial class Form1 : Form
     private Label _slideStatus = null!;
     private SlideCanvas _audiencePreview = null!;
     private ComboBox _fontFamily = null!;
-    private NumericUpDown _fontSize = null!;
+    private ComboBox _fontSize = null!;
     private CheckBox _autoFit = null!;
     private Button _boldButton = null!;
     private Button _italicButton = null!;
@@ -34,8 +34,8 @@ public partial class Form1 : Form
     private Button _strikethroughButton = null!;
     private Button _subscriptButton = null!;
     private Button _superscriptButton = null!;
-    private Button _fontColorButton = null!;
-    private Button _highlightColorButton = null!;
+    private ColorButton _fontColorButton = null!;
+    private ColorButton _highlightColorButton = null!;
     private Button _clearFormattingButton = null!;
     private Button _cutButton = null!;
     private Button _copyButton = null!;
@@ -44,9 +44,12 @@ public partial class Form1 : Form
     private Button _numberingButton = null!;
     private Button _decreaseIndentButton = null!;
     private Button _increaseIndentButton = null!;
-    private NumericUpDown _lineSpacing = null!;
-    private ComboBox _alignment = null!;
+    private ComboBox _lineSpacing = null!;
     private NumericUpDown _maxLines = null!;
+    private RibbonIconButton _alignLeftButton = null!;
+    private RibbonIconButton _alignCenterButton = null!;
+    private RibbonIconButton _alignRightButton = null!;
+    private RibbonIconButton _alignJustifyButton = null!;
     private TrackBar _brightness = null!;
     private BackgroundGalleryPanel _imageGallery = null!;
     private BackgroundGalleryPanel _videoGallery = null!;
@@ -386,14 +389,25 @@ public partial class Form1 : Form
         if (_statusSlide is not null) _statusSlide.Text = $"Slide {_currentSlide + 1} of {_slides.Count}";
         _projector?.SetSlide(_slides[_currentSlide], _theme); _videoProjector?.SetSlide(_slides[_currentSlide], _theme);
     }
-    private void SetTextStyle(Color color, bool bold) { _theme.TextColor = color; _theme.Bold = bold; _fontColorButton.BackColor = color; UpdateBoldButton(); RefreshSlides(); }
-    private void UpdateBoldButton() { _boldButton.BackColor = _theme.Bold ? _brand : Color.FromArgb(232, 237, 244); _boldButton.ForeColor = _theme.Bold ? Color.White : Color.FromArgb(31, 48, 68); }
-    private void UpdateItalicButton() { _italicButton.BackColor = _theme.Italic ? _brand : Color.FromArgb(232, 237, 244); _italicButton.ForeColor = _theme.Italic ? Color.White : Color.FromArgb(31, 48, 68); }
-    private void UpdateUnderlineButton() { _underlineButton.BackColor = _theme.Underline ? _brand : Color.FromArgb(232, 237, 244); _underlineButton.ForeColor = _theme.Underline ? Color.White : Color.FromArgb(31, 48, 68); }
-    private void UpdateStrikethroughButton() { _strikethroughButton.BackColor = _theme.Strikethrough ? _brand : Color.FromArgb(232, 237, 244); _strikethroughButton.ForeColor = _theme.Strikethrough ? Color.White : Color.FromArgb(31, 48, 68); }
-    private void UpdateSubSuperButtons() { _subscriptButton.BackColor = _theme.Subscript ? _brand : Color.FromArgb(232, 237, 244); _subscriptButton.ForeColor = _theme.Subscript ? Color.White : Color.FromArgb(31, 48, 68); _superscriptButton.BackColor = _theme.Superscript ? _brand : Color.FromArgb(232, 237, 244); _superscriptButton.ForeColor = _theme.Superscript ? Color.White : Color.FromArgb(31, 48, 68); }
-    private void ChooseHighlightColor() { using var dialog = new ColorDialog { Color = Color.FromArgb(255, 255, 153), FullOpen = true }; if (dialog.ShowDialog(this) != DialogResult.OK) return; _highlightColorButton.BackColor = dialog.Color; RefreshSlides(); }
-    private void ClearFormatting() { _theme.Bold = false; _theme.Italic = false; _theme.Underline = false; _theme.Strikethrough = false; _theme.Subscript = false; _theme.Superscript = false; _theme.TextColor = Color.Black; UpdateBoldButton(); UpdateItalicButton(); UpdateUnderlineButton(); UpdateStrikethroughButton(); UpdateSubSuperButtons(); _fontColorButton.BackColor = Color.Black; _fontColorButton.ForeColor = Color.White; RefreshSlides(); }
+    private void SetTextStyle(Color color, bool bold) { _theme.TextColor = color; _theme.Bold = bold; _fontColorButton.Swatch = color; UpdateBoldButton(); RefreshSlides(); }
+    private static void SetRibbonToggleState(Button button, bool on)
+    {
+        button.Tag = on;
+        button.BackColor = on ? RibbonIconButton.ActiveBack : RibbonIconButton.IdleBack;
+        button.ForeColor = on ? RibbonIconButton.ActiveInk : RibbonIconButton.IdleInk;
+        button.FlatAppearance.BorderColor = on ? RibbonIconButton.ActiveBorder : RibbonIconButton.IdleBorder;
+    }
+    private void UpdateBoldButton() => SetRibbonToggleState(_boldButton, _theme.Bold);
+    private void UpdateItalicButton() => SetRibbonToggleState(_italicButton, _theme.Italic);
+    private void UpdateUnderlineButton() => SetRibbonToggleState(_underlineButton, _theme.Underline);
+    private void UpdateStrikethroughButton() => SetRibbonToggleState(_strikethroughButton, _theme.Strikethrough);
+    private void UpdateSubSuperButtons()
+    {
+        SetRibbonToggleState(_subscriptButton, _theme.Subscript);
+        SetRibbonToggleState(_superscriptButton, _theme.Superscript);
+    }
+    private void ChooseHighlightColor() { using var dialog = new ColorDialog { Color = _theme.HighlightColor == Color.Transparent ? Color.FromArgb(255, 255, 153) : _theme.HighlightColor, FullOpen = true }; if (dialog.ShowDialog(this) != DialogResult.OK) return; _theme.HighlightColor = dialog.Color; _highlightColorButton.Swatch = dialog.Color; RefreshSlides(); }
+    private void ClearFormatting() { _theme.Bold = false; _theme.Italic = false; _theme.Underline = false; _theme.Strikethrough = false; _theme.Subscript = false; _theme.Superscript = false; _theme.TextColor = Color.Black; UpdateBoldButton(); UpdateItalicButton(); UpdateUnderlineButton(); UpdateStrikethroughButton(); UpdateSubSuperButtons(); _fontColorButton.Swatch = Color.Black; RefreshSlides(); }
     private void ToggleBullets() { if (_lyricsBox.SelectionLength == 0) return; var start = _lyricsBox.SelectionStart; var text = _lyricsBox.Text; var lineStart = text.LastIndexOf('\n', start - 1) + 1; var lineEnd = text.IndexOf('\n', start); if (lineEnd < 0) lineEnd = text.Length; var line = text.Substring(lineStart, lineEnd - lineStart); if (line.TrimStart().StartsWith("• ")) _lyricsBox.Text = text.Substring(0, lineStart) + line.Replace("• ", "", StringComparison.Ordinal) + text.Substring(lineEnd); else _lyricsBox.Text = text.Substring(0, lineStart) + "• " + line.TrimStart() + text.Substring(lineEnd); _lyricsBox.SelectionStart = start; RebuildSlides(); }
     private void ToggleNumbering() { if (_lyricsBox.SelectionLength == 0) return; var start = _lyricsBox.SelectionStart; var text = _lyricsBox.Text; var lineStart = text.LastIndexOf('\n', start - 1) + 1; var lineEnd = text.IndexOf('\n', start); if (lineEnd < 0) lineEnd = text.Length; var line = text.Substring(lineStart, lineEnd - lineStart); if (System.Text.RegularExpressions.Regex.IsMatch(line.TrimStart(), @"^\d+\.\s")) _lyricsBox.Text = text.Substring(0, lineStart) + System.Text.RegularExpressions.Regex.Replace(line.TrimStart(), @"^\d+\.\s", "") + text.Substring(lineEnd); else _lyricsBox.Text = text.Substring(0, lineStart) + "1. " + line.TrimStart() + text.Substring(lineEnd); _lyricsBox.SelectionStart = start; RebuildSlides(); }
     private void AdjustIndent(int delta) { if (_lyricsBox.SelectionLength == 0) return; }
@@ -428,7 +442,7 @@ public partial class Form1 : Form
     private static void SetStageButton(Button button, bool active) { button.BackColor = active ? Color.FromArgb(35, 157, 87) : Color.FromArgb(232, 237, 244); button.ForeColor = active ? Color.White : Color.FromArgb(31, 48, 68); }
     private void SetLogoPath() { using var dialog = new OpenFileDialog { Filter = "Image files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All files|*.*", Title = "Choose church logo" }; if (dialog.ShowDialog(this) != DialogResult.OK) return; var path = _store.ImportLogo(dialog.FileName); if (string.IsNullOrEmpty(path)) return; _data.BackgroundPreferences.LogoPath = path; _logoImage?.Dispose(); try { _logoImage = Image.FromFile(path); } catch { _logoImage = null; } Persist(); }
     private void LoadLogoImage() { _logoImage?.Dispose(); _logoImage = null; var path = _data.BackgroundPreferences.LogoPath; if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return; try { _logoImage = Image.FromFile(path); } catch { _logoImage = null; } }
-    private void ChooseTextColor() { using var dialog = new ColorDialog { Color = _theme.TextColor, FullOpen = true }; if (dialog.ShowDialog(this) != DialogResult.OK) return; _theme.TextColor = dialog.Color; _fontColorButton.BackColor = dialog.Color; _fontColorButton.ForeColor = dialog.Color.GetBrightness() > 0.5f ? Color.Black : Color.White; RefreshSlides(); }
+    private void ChooseTextColor() { using var dialog = new ColorDialog { Color = _theme.TextColor, FullOpen = true }; if (dialog.ShowDialog(this) != DialogResult.OK) return; _theme.TextColor = dialog.Color; _fontColorButton.Swatch = dialog.Color; RefreshSlides(); }
     private void ChooseBackgroundColor() { using var dialog = new ColorDialog { Color = _theme.BackgroundColor, FullOpen = true }; if (dialog.ShowDialog(this) != DialogResult.OK) return; _theme.BackgroundColor = dialog.Color; ClearBackgroundSelection(); SaveBackgroundPreferences(); RefreshSlides(); }
     private void ChooseBackgroundImage() { ImportBackground("Image"); }
     private void ToggleProjector()

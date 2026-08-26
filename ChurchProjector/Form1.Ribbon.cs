@@ -12,21 +12,32 @@ public partial class Form1
         Font = new Font("Segoe UI", 9F);
 
         var header = BuildHeader();
-        var tabBar = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = _darkBrand, Padding = new Padding(10, 5, 0, 5) };
-        var backgroundTab = TabButton("▧  Background", false);
+        var tabBar = new Panel { Dock = DockStyle.Top, Height = 34, BackColor = Color.White, Padding = new Padding(10, 0, 0, 0) };
+        tabBar.Paint += (_, e) =>
+        {
+            using var pen = new Pen(Color.FromArgb(214, 221, 229));
+            e.Graphics.DrawLine(pen, 0, tabBar.Height - 1, tabBar.Width, tabBar.Height - 1);
+        };
+        var backgroundTab = TabButton("Background", false);
         backgroundTab.Dock = DockStyle.Left;
         var bibleTab = TabButton("Bible", false);
         bibleTab.Dock = DockStyle.Left;
         var helpTab = TabButton("Help", false);
         helpTab.Dock = DockStyle.Left;
-        var textTab = TabButton("A  Text", true);
+        var textTab = TabButton("Text", true);
         textTab.Dock = DockStyle.Left;
         tabBar.Controls.Add(helpTab);
         tabBar.Controls.Add(bibleTab);
         tabBar.Controls.Add(backgroundTab);
         tabBar.Controls.Add(textTab);
 
-        _ribbonHost = new Panel { Dock = DockStyle.Top, Height = 160, BackColor = Color.White, Padding = new Padding(10, 8, 10, 8) };
+        _ribbonHost = new Panel { Dock = DockStyle.Top, Height = 148, BackColor = Color.White };
+        _ribbonHost.Paint += (_, e) =>
+        {
+            using var pen = new Pen(Color.FromArgb(214, 221, 229));
+            e.Graphics.DrawLine(pen, 0, _ribbonHost.Height - 1, _ribbonHost.Width, _ribbonHost.Height - 1);
+        };
+        _ribbonHost.Resize += (_, _) => RelayoutRibbon();
         var ribbonHost = _ribbonHost;
         var textRibbon = BuildTextRibbon();
         var backgroundRibbon = BuildBackgroundRibbon();
@@ -60,6 +71,7 @@ public partial class Form1
         Controls.Add(header);
         Controls.Add(statusBar);
         ResumeLayout();
+        RelayoutRibbon();
     }
 
     private Control BuildStatusBar()
@@ -86,17 +98,35 @@ public partial class Form1
     {
         foreach (Control control in ribbon.Parent!.Controls) control.Visible = control == ribbon;
         foreach (Control control in workspace.Parent!.Controls) control.Visible = control == workspace;
-        active.BackColor = Color.White;
-        active.ForeColor = _darkBrand;
-        foreach (var button in inactive)
-        {
-            button.BackColor = _darkBrand;
-            button.ForeColor = Color.White;
-        }
+        SetTabState(active, true);
+        foreach (var button in inactive) SetTabState(button, false);
         if (_statusTab is not null)
-            _statusTab.Text = "Tab: " + active.Text.Replace("▧", "").Replace("A", "").Trim();
+            _statusTab.Text = "Tab: " + active.Text;
         _currentTab = active.Text.Contains("Bible") ? "bible" : active.Text.Contains("Background") ? "background" : active.Text.Contains("Help") ? "help" : "text";
         _activeAgendaList = _currentTab == "bible" ? _bibleAgendaList : null;
+        RelayoutRibbon();
+    }
+
+    /// <summary>
+    /// Sizes the ribbon host to fit the visible ribbon, wrapping to two rows when the
+    /// window is narrow — the same behaviour as the Word ribbon.
+    /// </summary>
+    private void RelayoutRibbon()
+    {
+        if (_ribbonHost is null) return;
+        var ribbon = _ribbonHost.Controls.OfType<FlowLayoutPanel>().FirstOrDefault(control => control.Visible);
+        if (ribbon is null) return;
+        var total = 0;
+        var rowHeight = 0;
+        foreach (Control child in ribbon.Controls)
+        {
+            total += child.Width + child.Margin.Horizontal;
+            rowHeight = Math.Max(rowHeight, child.Height + child.Margin.Vertical);
+        }
+        var available = Math.Max(240, _ribbonHost.ClientSize.Width - 24);
+        var rows = total <= available ? 1 : 2;
+        var target = rows * rowHeight + 14;
+        if (Math.Abs(_ribbonHost.Height - target) >= 3) _ribbonHost.Height = target;
     }
 
     private Control BuildHeader()
@@ -130,28 +160,25 @@ public partial class Form1
 
     private Control BuildTextRibbon()
     {
-        var ribbon = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, AutoScroll = true, BackColor = Color.White };
-        
-        // Clipboard group (Cut, Copy, Paste)
-        var clipboard = RibbonGroup("Clipboard", 160);
-        _cutButton = Button("✂", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
-        _cutButton.Font = new Font("Segoe UI", 10F);
-        _cutButton.Click += (_, _) => { if (_lyricsBox.SelectedText.Length > 0) Clipboard.SetText(_lyricsBox.SelectedText); _lyricsBox.SelectedText = ""; };
-        _copyButton = Button("📋", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
-        _copyButton.Font = new Font("Segoe UI", 10F);
-        _copyButton.Click += (_, _) => { if (_lyricsBox.SelectedText.Length > 0) Clipboard.SetText(_lyricsBox.SelectedText); };
-        _pasteButton = Button("📄", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
-        _pasteButton.Font = new Font("Segoe UI", 10F);
-        _pasteButton.Click += (_, _) => { if (Clipboard.ContainsText()) _lyricsBox.SelectedText = Clipboard.GetText(); };
-        var clipTT = new ToolTip();
-        clipTT.SetToolTip(_cutButton, "Cut selected text");
-        clipTT.SetToolTip(_copyButton, "Copy selected text");
-        clipTT.SetToolTip(_pasteButton, "Paste from clipboard");
-        Add(clipboard, _cutButton, _copyButton, _pasteButton);
+        var ribbon = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, AutoScroll = false, BackColor = Color.White, Padding = new Padding(8, 4, 8, 4) };
 
-        // Font group - comprehensive font controls like Word
-        var font = RibbonGroup("Font", 540);
-        _fontFamily = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 180 };
+        // Clipboard group
+        var clipboard = RibbonGroup("Clipboard", 150);
+        _pasteButton = RibbonButton(RibbonGlyph.Paste, "Paste", 46, 62);
+        _pasteButton.Click += (_, _) => { if (Clipboard.ContainsText()) _lyricsBox.SelectedText = Clipboard.GetText(); };
+        _copyButton = RibbonButton(RibbonGlyph.Copy, "Copy", 32, 54);
+        _copyButton.Click += (_, _) => { if (_lyricsBox.SelectedText.Length > 0) Clipboard.SetText(_lyricsBox.SelectedText); };
+        _cutButton = RibbonButton(RibbonGlyph.Cut, "Cut", 32, 54);
+        _cutButton.Click += (_, _) => { if (_lyricsBox.SelectedText.Length > 0) Clipboard.SetText(_lyricsBox.SelectedText); _lyricsBox.SelectedText = ""; };
+        var clipTT = new ToolTip();
+        clipTT.SetToolTip(_pasteButton, "Paste from clipboard");
+        clipTT.SetToolTip(_copyButton, "Copy selected text");
+        clipTT.SetToolTip(_cutButton, "Cut selected text");
+        Add(clipboard, _pasteButton, _copyButton, _cutButton);
+
+        // Font group
+        var font = RibbonGroup("Font", 330);
+        _fontFamily = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150, Margin = new Padding(0, 2, 6, 0) };
         var fonts = new List<string> { "Segoe UI", "Arial", "Calibri", "Cambria", "Georgia", "Verdana", "Trebuchet MS", "Times New Roman", "Tahoma", "Century Gothic" };
         // Telugu fonts that support Telugu script rendering
         var telugu = new[] { "Nirmala UI", "Noto Sans Telugu", "Gautami", "Vani", "Lohit Telugu", "Telugu Sangam MN", "Raghu Telugu", "Kalinga", "Shruti", "Tunga", "Malgun Gothic", "Microsoft Himalaya" };
@@ -160,82 +187,74 @@ public partial class Form1
         _fontFamily.Items.AddRange([.. fonts.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(f => f)]);
         _fontFamily.SelectedItem = _theme.FontFamily;
         _fontFamily.SelectedIndexChanged += (_, _) => { _theme.FontFamily = _fontFamily.Text; RefreshSlides(); };
-        
-        _fontSize = new NumericUpDown { Minimum = 8, Maximum = 200, Value = 56, Width = 53 };
-        _fontSize.ValueChanged += (_, _) => { _theme.FontSize = (float)_fontSize.Value; RefreshSlides(); };
-        
-        _boldButton = Button("B", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
-        _boldButton.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+
+        _fontSize = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 50, Margin = new Padding(0, 2, 6, 0) };
+        foreach (var size in new[] { 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 88, 96 }) _fontSize.Items.Add(size);
+        _fontSize.SelectedItem = (int)_theme.FontSize;
+        _fontSize.SelectedIndexChanged += (_, _) => { if (_fontSize.SelectedItem is int size) { _theme.FontSize = size; RefreshSlides(); } };
+
+        _boldButton = ToggleStyleButton("B", new Font("Segoe UI", 10.5F, FontStyle.Bold), "Bold");
         _boldButton.Click += (_, _) => { _theme.Bold = !_theme.Bold; UpdateBoldButton(); RefreshSlides(); };
-        
-        _italicButton = Button("I", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
-        _italicButton.Font = new Font("Segoe UI", 10F, FontStyle.Italic);
+        _italicButton = ToggleStyleButton("I", new Font("Georgia", 10.5F, FontStyle.Italic), "Italic");
         _italicButton.Click += (_, _) => { _theme.Italic = !_theme.Italic; UpdateItalicButton(); RefreshSlides(); };
-        
-        _underlineButton = Button("U", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
-        _underlineButton.Font = new Font("Segoe UI", 10F, FontStyle.Underline);
+        _underlineButton = ToggleStyleButton("U", new Font("Segoe UI", 9.5F, FontStyle.Underline), "Underline");
         _underlineButton.Click += (_, _) => { _theme.Underline = !_theme.Underline; UpdateUnderlineButton(); RefreshSlides(); };
-        
-        _strikethroughButton = Button("abc", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
-        _strikethroughButton.Font = new Font("Segoe UI", 8F, FontStyle.Strikeout);
+        _strikethroughButton = ToggleStyleButton("abc", new Font("Segoe UI", 8.5F, FontStyle.Strikeout), "Strikethrough");
         _strikethroughButton.Click += (_, _) => { _theme.Strikethrough = !_theme.Strikethrough; UpdateStrikethroughButton(); RefreshSlides(); };
-        
-        _subscriptButton = Button("X₂", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
-        _subscriptButton.Font = new Font("Segoe UI", 8F);
+        _subscriptButton = ToggleStyleButton("X₂", new Font("Segoe UI", 9F), "Subscript");
         _subscriptButton.Click += (_, _) => { _theme.Subscript = !_theme.Subscript; _theme.Superscript = false; UpdateSubSuperButtons(); RefreshSlides(); };
-        
-        _superscriptButton = Button("X²", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
-        _superscriptButton.Font = new Font("Segoe UI", 8F);
+        _superscriptButton = ToggleStyleButton("X²", new Font("Segoe UI", 9F), "Superscript");
         _superscriptButton.Click += (_, _) => { _theme.Superscript = !_theme.Superscript; _theme.Subscript = false; UpdateSubSuperButtons(); RefreshSlides(); };
-        
-        _fontColorButton = Button("A", _theme.TextColor, Color.White, 36, 29);
-        _fontColorButton.FlatAppearance.BorderColor = Color.FromArgb(180, 180, 180);
-        _fontColorButton.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+        _fontColorButton = new ColorButton("A", _theme.TextColor, new Font("Segoe UI", 13F, FontStyle.Bold)) { Width = 32, Height = 42 };
         _fontColorButton.Click += (_, _) => ChooseTextColor();
-        
-        _highlightColorButton = Button("▱", Color.FromArgb(255, 255, 153), Color.FromArgb(31, 48, 68), 36, 29);
-        _highlightColorButton.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _highlightColorButton = new ColorButton("▱", _theme.HighlightColor == Color.Transparent ? Color.FromArgb(255, 255, 153) : _theme.HighlightColor, new Font("Segoe UI", 13F, FontStyle.Bold)) { Width = 32, Height = 42 };
         _highlightColorButton.Click += (_, _) => ChooseHighlightColor();
-        
-        _clearFormattingButton = Button("A⃠", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
-        _clearFormattingButton.Font = new Font("Segoe UI", 9F);
+        _clearFormattingButton = RibbonButton(RibbonGlyph.ClearFormatting, "Clear", 34, 54);
         _clearFormattingButton.Click += (_, _) => ClearFormatting();
-        
+        var fontTT = new ToolTip();
+        fontTT.SetToolTip(_clearFormattingButton, "Clear bold, italic, underline, strikethrough and colour");
         Add(font, _fontFamily, _fontSize, _boldButton, _italicButton, _underlineButton, _strikethroughButton, _subscriptButton, _superscriptButton, _fontColorButton, _highlightColorButton, _clearFormattingButton);
 
-        // Paragraph group - alignment and spacing
-        var paragraph = RibbonGroup("Paragraph", 380);
-        _alignment = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 105 };
-        _alignment.Items.AddRange(["Left", "Centre", "Right", "Justify"]);
-        _alignment.SelectedItem = "Centre";
-        _alignment.SelectedIndexChanged += (_, _) => { _theme.Alignment = _alignment.Text; RefreshSlides(); };
-        
-        _bulletsButton = Button("≡", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
-        _bulletsButton.Font = new Font("Segoe UI", 10F);
+        // Paragraph group - alignment icons, lists, indent, spacing
+        var paragraph = RibbonGroup("Paragraph", 300);
+        _alignLeftButton = AlignButton(RibbonGlyph.AlignLeft, "Align left");
+        _alignLeftButton.Click += (_, _) => SetAlignment("Left");
+        _alignCenterButton = AlignButton(RibbonGlyph.AlignCenter, "Align centre");
+        _alignCenterButton.Click += (_, _) => SetAlignment("Centre");
+        _alignRightButton = AlignButton(RibbonGlyph.AlignRight, "Align right");
+        _alignRightButton.Click += (_, _) => SetAlignment("Right");
+        _alignJustifyButton = AlignButton(RibbonGlyph.AlignJustify, "Justify");
+        _alignJustifyButton.Click += (_, _) => SetAlignment("Justify");
+        _alignLeftButton.Highlighted = _theme.Alignment == "Left";
+        _alignRightButton.Highlighted = _theme.Alignment == "Right";
+        _alignJustifyButton.Highlighted = _theme.Alignment == "Justify";
+        _alignCenterButton.Highlighted = _theme.Alignment != "Left" && _theme.Alignment != "Right" && _theme.Alignment != "Justify";
+        _bulletsButton = RibbonButton(RibbonGlyph.Bullets, "Bullets", 32, 54);
         _bulletsButton.Click += (_, _) => ToggleBullets();
-        
-        _numberingButton = Button("1.", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
-        _numberingButton.Font = new Font("Segoe UI", 9F);
+        _numberingButton = RibbonButton(RibbonGlyph.Numbered, "Number", 32, 54);
         _numberingButton.Click += (_, _) => ToggleNumbering();
-        
-        _decreaseIndentButton = Button("➤", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
-        _decreaseIndentButton.Font = new Font("Segoe UI", 8F);
+        _decreaseIndentButton = RibbonButton(RibbonGlyph.IndentLeft, "Less", 32, 54);
         _decreaseIndentButton.Click += (_, _) => AdjustIndent(-1);
-        
-        _increaseIndentButton = Button("➤", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
-        _increaseIndentButton.Font = new Font("Segoe UI", 8F);
+        _increaseIndentButton = RibbonButton(RibbonGlyph.IndentRight, "More", 32, 54);
         _increaseIndentButton.Click += (_, _) => AdjustIndent(1);
-        
-        _lineSpacing = new NumericUpDown { Minimum = 1, Maximum = 5, Value = 1, Increment = 0.1m, Width = 48 };
-        _lineSpacing.ValueChanged += (_, _) => { _theme.LineSpacing = (float)_lineSpacing.Value; RefreshSlides(); };
-        
-        _maxLines = new NumericUpDown { Minimum = 1, Maximum = 12, Value = 4, Width = 48 };
+        _lineSpacing = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 74, Margin = new Padding(0, 1, 0, 0) };
+        foreach (var value in new[] { "1.0", "1.15", "1.3", "1.5", "2.0", "3.0" }) _lineSpacing.Items.Add(value);
+        var currentSpacing = _lineSpacing.Items.Cast<string>().FirstOrDefault(value => Math.Abs(float.Parse(value, System.Globalization.CultureInfo.InvariantCulture) - _theme.LineSpacing) < 0.001f);
+        _lineSpacing.SelectedItem = currentSpacing;
+        _lineSpacing.SelectedIndexChanged += (_, _) =>
+        {
+            if (_lineSpacing.SelectedItem is string value && float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var spacing))
+            {
+                _theme.LineSpacing = spacing;
+                RefreshSlides();
+            }
+        };
+        _maxLines = new NumericUpDown { Minimum = 1, Maximum = 12, Value = 4, Width = 44, Margin = new Padding(0, 1, 0, 0) };
         _maxLines.ValueChanged += (_, _) => RebuildSlides();
-        
-        Add(paragraph, Field("Align", _alignment), _bulletsButton, _numberingButton, _decreaseIndentButton, _increaseIndentButton, Field("Spacing", _lineSpacing), Field("Max lines", _maxLines));
+        Add(paragraph, _alignLeftButton, _alignCenterButton, _alignRightButton, _alignJustifyButton, _bulletsButton, _numberingButton, _decreaseIndentButton, _increaseIndentButton, MiniField("Spacing", _lineSpacing), MiniField("Lines", _maxLines));
 
         // Styles group - quick text styles
-        var styles = RibbonGroup("Styles", 380);
+        var styles = RibbonGroup("Styles", 274);
         var tt = new ToolTip();
         var lightPreview = PreviewStyle("Light", Color.White, Color.FromArgb(28, 34, 45), () => SetTextStyle(Color.White, true));
         tt.SetToolTip(lightPreview, "Light text — white on dark background");
@@ -247,9 +266,9 @@ public partial class Form1
         tt.SetToolTip(titlePreview, "Title style — golden accent color");
         Add(styles, lightPreview, warmPreview, darkPreview, titlePreview);
 
-        // Cloud Sync group
-        var sync = RibbonGroup("Cloud sync", 300);
-        var syncNow = Button("\u21bb  Sync now", _brand, Color.White, 100, 34);
+        // Cloud sync group
+        var sync = RibbonGroup("Cloud sync", 136);
+        var syncNow = RibbonActionButton("\u21bb  Sync now", _brand, Color.White, 108, 30);
         syncNow.Click += async (_, _) =>
         {
             syncNow.Enabled = false;
@@ -269,6 +288,16 @@ public partial class Form1
 
         ribbon.Controls.AddRange([clipboard, font, paragraph, styles, sync]);
         return ribbon;
+    }
+
+    private void SetAlignment(string alignment)
+    {
+        _theme.Alignment = alignment;
+        _alignLeftButton.Highlighted = alignment == "Left";
+        _alignRightButton.Highlighted = alignment == "Right";
+        _alignJustifyButton.Highlighted = alignment == "Justify";
+        _alignCenterButton.Highlighted = alignment != "Left" && alignment != "Right" && alignment != "Justify";
+        RefreshSlides();
     }
 
     private Control BuildBackgroundRibbon()
