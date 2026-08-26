@@ -90,7 +90,7 @@ public sealed class SlideCanvas : Control
         if (theme.Bold) style |= FontStyle.Bold;
         if (theme.Italic) style |= FontStyle.Italic;
         if (theme.Underline) style |= FontStyle.Underline;
-        if (theme.Strikethrough) style |= FontStyle.Strikethrough;
+        if (theme.Strikethrough) style |= FontStyle.Strikeout;
 
         var availableWidth = Math.Max(40, canvas.Width - (canvas.Width * 16 / 100));
         var textArea = new RectangleF(canvas.X + canvas.Width * .08F, canvas.Y + canvas.Height * .12F, availableWidth, canvas.Height * .76F);

@@ -77,11 +77,11 @@ public partial class Form1
             {
                 using var source = Image.FromFile(asset.FilePath);
                 var scale = Math.Max(72f / source.Width, 40f / source.Height);
-                var width = source.Width * scale;
-                var height = source.Height * scale;
-                var x = (72f - width) / 2f;
-                var y = (40f - height) / 2f;
-                graphics.DrawImage(source, new RectangleF(x, y, width, height), 0, 0, source.Width, source.Height, GraphicsUnit.Pixel);
+                var width = (int)Math.Ceiling(source.Width * scale);
+                var height = (int)Math.Ceiling(source.Height * scale);
+                var x = (72 - width) / 2;
+                var y = (40 - height) / 2;
+                graphics.DrawImage(source, new Rectangle(x, y, width, height), 0, 0, source.Width, source.Height, GraphicsUnit.Pixel);
                 using var shade = new SolidBrush(Color.FromArgb(70, 0, 0, 0));
                 graphics.FillRectangle(shade, 0, 0, 72, 40);
             }
