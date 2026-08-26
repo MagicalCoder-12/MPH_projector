@@ -83,7 +83,7 @@ public partial class Form1
         FilterLibrary("");
         RefreshBibleList();
         RefreshBibleTranslationPicker();
-        RefreshBackgroundPicker();
+        RefreshBackgroundGalleries();
         RefreshAgenda();
         if (_library.Count > 0) LoadSong(_library[0]);
         else NewSong();

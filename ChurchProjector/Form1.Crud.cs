@@ -11,45 +11,100 @@ public partial class Form1
             _titleBox.Focus();
             return;
         }
-
+        var lyrics = _lyricsBox.Text;
         var song = _currentSongId is Guid id ? _library.FirstOrDefault(item => item.Id == id) : null;
+        var duplicate = _library.FirstOrDefault(s => s.Id != song?.Id && string.Equals(s.Title.Trim(), title, StringComparison.OrdinalIgnoreCase));
+        if (duplicate is not null)
+        {
+            MessageBox.Show(this, $"Duplicates not allowed: A song with title \"{title}\" already exists.", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        var normLyrics = NormalizeLyrics(lyrics);
+        if (!string.IsNullOrWhiteSpace(normLyrics))
+        {
+            var dupLyrics = _library.FirstOrDefault(s => s.Id != song?.Id && string.Equals(NormalizeLyrics(s.Lyrics), normLyrics, StringComparison.OrdinalIgnoreCase));
+            if (dupLyrics is not null)
+            {
+                MessageBox.Show(this, $"Duplicates not allowed: Lyrics already exist in \"{dupLyrics.Title}\".", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+        }
+        var isNew = song is null;
+        var originalUpdatedAt = song?.UpdatedAt ?? default;
         if (song is null)
         {
-            song = new Song();
+            song = new Song { CreatedAt = DateTime.UtcNow };
             _library.Add(song);
             _currentSongId = song.Id;
         }
         song.Title = title;
-        song.Lyrics = _lyricsBox.Text;
+        song.Lyrics = lyrics;
+        song.Owner = "app";
+        if (!song.Tags.Contains("church", StringComparer.OrdinalIgnoreCase)) song.Tags.Add("church");
+        song.UpdatedAt = DateTime.UtcNow;
+        if (isNew && song.CreatedAt == default) song.CreatedAt = DateTime.UtcNow;
         Persist();
         FilterLibrary("");
         if (_libraryList is not null) _libraryList.SelectedItem = song;
         _slideStatus.Text = "Saved - " + song.Title;
 
-        if (_data.Sync.UseMongoDb && _mongoDb is not null)
+        if (_apiClient is not null)
         {
             try
             {
-                var mongoSong = ToMongoSong(song);
+                var apiSong = ToApiSong(song);
                 if (song.SourceId is null)
                 {
-                    mongoSong.Tags = ["church"];
-                    mongoSong.Desktop = "true";
-                    mongoSong.Source = "desktop";
-                    var created = await _mongoDb.CreateSongAsync(mongoSong);
-                    song.SourceId = created.Id;
+                    apiSong.Tags = ["church"];
+                    apiSong.Desktop = "true";
+                    apiSong.Source = "desktop";
+                    apiSong.Owner = "app";
+                    var created = await _apiClient.CreateSongAsync(apiSong);
+                    if (created is not null) song.SourceId = created.Id;
                     Persist();
                 }
                 else
                 {
-                    var existing = await _mongoDb.GetSongByIdAsync(song.SourceId);
-                    if (existing is not null && string.Equals(existing.Source, "web", StringComparison.OrdinalIgnoreCase))
+                    apiSong.Id = song.SourceId;
+                    apiSong.ExpectedUpdatedAt = originalUpdatedAt == default ? null : originalUpdatedAt;
+                    try
                     {
-                        _slideStatus.Text = "Saved locally only (web-owned)";
+                        await _apiClient.UpdateSongAsync(song.SourceId, apiSong);
                     }
-                    else
+                    catch (ConflictException conflict)
                     {
-                        await _mongoDb.UpdateSongAsync(song.SourceId, mongoSong);
+                        var server = conflict.ServerSong;
+                        var serverTitle = server?.Title ?? "(unknown)";
+                        var result = MessageBox.Show(this,
+                            $"Conflict detected: \"{title}\" was edited on the website more recently.\n\nServer (web) updated: {(server?.UpdatedAt.ToLocalTime().ToString() ?? "unknown")}\nYour version (app) updated: {song.UpdatedAt.ToLocalTime()}\n\nYes = Keep mine (overwrite web)\nNo = Take web version (discard my changes)\nCancel = Keep editing to merge manually",
+                            "MPH Songs — Conflict",
+                            MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button3);
+                        if (result == DialogResult.Yes)
+                        {
+                            apiSong.ExpectedUpdatedAt = null;
+                            await _apiClient.UpdateSongAsync(song.SourceId, apiSong);
+                            _slideStatus.Text = "Saved — overwrote web version";
+                        }
+                        else if (result == DialogResult.No)
+                        {
+                            if (server is not null)
+                            {
+                                song.Title = server.Title;
+                                song.Lyrics = server.Lyrics;
+                                song.Owner = server.Owner;
+                                song.Tags = server.Tags;
+                                song.UpdatedAt = server.UpdatedAt;
+                                song.CreatedAt = server.CreatedAt;
+                                Persist();
+                                FilterLibrary(_librarySearch.Text);
+                                LoadSong(song);
+                                _slideStatus.Text = "Loaded web version — your changes discarded";
+                            }
+                        }
+                        else
+                        {
+                            _slideStatus.Text = "Conflict — merge manually and save again";
+                        }
                     }
                 }
             }
@@ -74,16 +129,10 @@ public partial class Form1
         FilterLibrary("");
         NewSong();
 
-        if (_data.Sync.UseMongoDb && _mongoDb is not null && song.SourceId is not null)
+        if (_apiClient is not null && song.SourceId is not null)
         {
-            try
-            {
-                await _mongoDb.DeleteSongAsync(song.SourceId);
-            }
-            catch
-            {
-                // ignore sync failure; local delete already succeeded
-            }
+            try { await _apiClient.DeleteSongAsync(song.SourceId); }
+            catch { }
         }
     }
 
@@ -93,21 +142,7 @@ public partial class Form1
         _titleBox.Focus();
     }
 
-    private static MongoSong ToMongoSong(Song song) => new()
-    {
-        Id = song.SourceId ?? string.Empty,
-        Title = song.Title,
-        Lyrics = song.Lyrics,
-        SongLanguage = "Telugu",
-        IsChoirPractice = false,
-        IsChristmasSong = false,
-        Tags = ["church"],
-        Web = null,
-        Desktop = "true",
-        Source = "desktop",
-        CreatedAt = DateTime.UtcNow,
-        UpdatedAt = DateTime.UtcNow
-    };
+
 
     private void RefreshAgenda()
     {
@@ -162,6 +197,8 @@ public partial class Form1
         RefreshAgenda();
         _activeAgendaList.SelectedIndex = target;
     }
+
+    private static string NormalizeLyrics(string lyrics) => lyrics.Replace("\r", "").Trim();
 
     private void Persist()
     {

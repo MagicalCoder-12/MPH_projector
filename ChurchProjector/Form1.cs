@@ -14,7 +14,9 @@ public partial class Form1 : Form
     private readonly List<string> _slides = [];
     private readonly List<int> _verseSlideIndexes = [];
     private TextBox _librarySearch = null!;
-    private MongoDbService? _mongoDb;
+    private ComboBox _librarySort = null!;
+    private string _librarySortMode = "alphabetical";
+    private SongApiClient? _apiClient;
 
     private RichTextBox _lyricsBox = null!;
     private TextBox _titleBox = null!;
@@ -46,7 +48,8 @@ public partial class Form1 : Form
     private ComboBox _alignment = null!;
     private NumericUpDown _maxLines = null!;
     private TrackBar _brightness = null!;
-    private ComboBox _backgroundPicker = null!;
+    private BackgroundGalleryPanel _imageGallery = null!;
+    private BackgroundGalleryPanel _videoGallery = null!;
     private CheckBox _videoLoop = null!;
     private Control _songWorkspace = null!;
     private Control _bibleWorkspace = null!;
@@ -87,6 +90,13 @@ public partial class Form1 : Form
     private Button _hideTextButton = null!;
     private Button _logoButton = null!;
 
+    private Panel _ribbonHost = null!;
+    private GalleryDropdownForm? _activeDropdown;
+    private FileSystemWatcher? _imageWatcher;
+    private FileSystemWatcher? _videoWatcher;
+    private readonly System.Windows.Forms.Timer _bgWatcherDebounce = new() { Interval = 600 };
+    private readonly System.Windows.Forms.Timer _bgPollTimer = new() { Interval = 3000 };
+    private bool _bgWatcherPending;
     private readonly Color _brand = Color.FromArgb(22, 113, 180);
     private readonly Color _darkBrand = Color.FromArgb(14, 83, 143);
     private readonly Color _panelBorder = Color.FromArgb(210, 218, 227);
@@ -107,6 +117,14 @@ public partial class Form1 : Form
             _data.Songs.AddRange(DefaultSongs());
             _store.Save(_data);
         }
+        foreach (var s in _data.Songs)
+        {
+            if (string.IsNullOrWhiteSpace(s.Owner)) s.Owner = "app";
+            if (s.Tags is null || s.Tags.Count == 0) s.Tags = ["church"];
+            else if (!s.Tags.Contains("church", StringComparer.OrdinalIgnoreCase)) s.Tags.Add("church");
+            if (s.CreatedAt == default) s.CreatedAt = DateTime.UtcNow.AddMinutes(-Random.Shared.Next(0, 10000));
+            if (s.UpdatedAt == default) s.UpdatedAt = s.CreatedAt;
+        }
         _library = _data.Songs;
         _agenda = _data.Agenda;
         _bibles = _data.Bibles;
@@ -116,7 +134,8 @@ public partial class Form1 : Form
         RestoreBackgroundPreferences();
         LoadLogoImage();
         BuildInterface();
-        _ = LoadSongsFromMongoAsync();
+        SetupBackgroundWatchers();
+        _ = LoadSongsFromApiAsync();
         StartSyncTimer();
         UpdateBoldButton();
         UpdateProjectorStatus();
@@ -156,100 +175,136 @@ public partial class Form1 : Form
     private void StartSyncTimer()
     {
         _syncTimer.Interval = 60_000;
-        _syncTimer.Tick += async (_, _) => await SyncFromMongoAsync();
-        if (_data.Sync.UseMongoDb) _syncTimer.Start();
+        _syncTimer.Tick += async (_, _) => await SyncFromApiAsync();
+        _syncTimer.Start();
     }
 
-    private async Task SyncFromMongoAsync()
+    private async Task SyncFromApiAsync()
     {
-        if (_syncing || !_data.Sync.UseMongoDb) return;
-        if (_mongoDb is null)
+        if (_syncing) return;
+        if (_apiClient is null)
         {
-            try { _mongoDb = new MongoDbService(_data.Sync.MongoDbConnectionString); }
+            try { _apiClient = new SongApiClient(); }
             catch { return; }
         }
         _syncing = true;
         try
         {
-            var remoteSongs = await _mongoDb.GetAllSongsAsync();
-            var bySourceId = remoteSongs.Where(s => !string.IsNullOrEmpty(s.Id)).ToDictionary(s => s.Id, s => s, StringComparer.OrdinalIgnoreCase);
+            // Pull from web
+            var remoteSongs = await _apiClient.GetAllSongsAsync();
+            var byRemoteId = remoteSongs.Where(s => !string.IsNullOrEmpty(s.Id)).ToDictionary(s => s.Id, s => s, StringComparer.OrdinalIgnoreCase);
             var changed = false;
             var pulled = 0; var merged = 0; var updated = 0;
-            foreach (var remote in bySourceId.Values)
+            foreach (var remote in byRemoteId.Values)
             {
                 var existing = _library.FirstOrDefault(s => s.SourceId == remote.Id);
                 if (existing is null)
                 {
+                    // Try title merge for local-only songs
                     existing = _library.FirstOrDefault(s => s.SourceId is null && string.Equals(s.Title, remote.Title, StringComparison.OrdinalIgnoreCase));
                     if (existing is not null) { existing.SourceId = remote.Id; merged++; changed = true; }
                 }
-                if (existing is null) { _library.Add(new Song { SourceId = remote.Id, Title = remote.Title, Lyrics = remote.Lyrics }); pulled++; changed = true; }
+                if (existing is null)
+                {
+                    _library.Add(new Song { SourceId = remote.Id, Title = remote.Title, Lyrics = remote.Lyrics, Owner = string.IsNullOrWhiteSpace(remote.Owner) ? "web" : remote.Owner, Tags = remote.Tags.Count > 0 ? remote.Tags : ["web"], CreatedAt = remote.CreatedAt == default ? DateTime.UtcNow : remote.CreatedAt, UpdatedAt = remote.UpdatedAt == default ? DateTime.UtcNow : remote.UpdatedAt });
+                    pulled++; changed = true;
+                }
                 else if (string.Equals(remote.Source, "web", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!string.Equals(existing.Lyrics, remote.Lyrics, StringComparison.Ordinal)) { existing.Title = remote.Title; existing.Lyrics = remote.Lyrics; updated++; changed = true; }
+                    var newOwner = string.IsNullOrWhiteSpace(remote.Owner) ? "web" : remote.Owner;
+                    if (!string.Equals(existing.Lyrics, remote.Lyrics, StringComparison.Ordinal) || !string.Equals(existing.Title, remote.Title, StringComparison.Ordinal) || existing.Owner != newOwner)
+                    { existing.Title = remote.Title; existing.Lyrics = remote.Lyrics; existing.Owner = newOwner; existing.Tags = remote.Tags.Count > 0 ? remote.Tags : existing.Tags; existing.UpdatedAt = remote.UpdatedAt == default ? DateTime.UtcNow : remote.UpdatedAt; updated++; changed = true; }
                 }
             }
             if (changed) Persist();
             FilterLibrary(_librarySearch?.Text ?? string.Empty);
+
+            // Push to web
+            var (pushCount, linkCount, pushUpdates) = await PushLocalSongsToApiAsync();
+
             _lastSyncFailed = false;
-            var (pushCount, linkCount, _) = await PushLocalSongsToMongoAsync();
             UpdateSyncStatus(true, pulled, merged, updated, pushCount, linkCount);
         }
         catch (Exception ex) { _lastSyncFailed = true; _syncError = ex.Message; UpdateSyncStatus(false); }
         finally { _syncing = false; }
     }
 
-    private async Task<(int pushed, int linked, int pushedUpdates)> PushLocalSongsToMongoAsync()
+    private async Task<(int pushed, int linked, int pushedUpdates)> PushLocalSongsToApiAsync()
     {
-        if (_mongoDb is null) return (0, 0, 0);
-        List<MongoSong> remoteSongs;
-        try { remoteSongs = await _mongoDb.GetAllSongsAsync(); } catch { return (0, 0, 0); }
-        var remoteByTitle = remoteSongs.Where(s => !string.IsNullOrWhiteSpace(s.Title)).ToDictionary(s => s.Title.Trim(), s => s, StringComparer.OrdinalIgnoreCase);
-        var remoteById = remoteSongs.Where(s => !string.IsNullOrEmpty(s.Id)).ToDictionary(s => s.Id, s => s, StringComparer.OrdinalIgnoreCase);
+        if (_apiClient is null) return (0, 0, 0);
+        List<ApiSong> remoteSongs;
+        try { remoteSongs = await _apiClient.GetAllSongsAsync(); }
+        catch { return (0, 0, 0); }
+        var remoteByTitle = remoteSongs.Where(s => !string.IsNullOrWhiteSpace(s.Title))
+            .ToDictionary(s => s.Title.Trim(), s => s, StringComparer.OrdinalIgnoreCase);
+        var remoteById = remoteSongs.Where(s => !string.IsNullOrEmpty(s.Id))
+            .ToDictionary(s => s.Id, s => s, StringComparer.OrdinalIgnoreCase);
         var pushed = 0; var linked = 0; var pushedUpdates = 0; var changed = false;
 
+        // Push updates for desktop-owned songs
         foreach (var song in _library.Where(s => s.SourceId is not null && !string.IsNullOrWhiteSpace(s.Title)).ToList())
         {
             if (!remoteById.TryGetValue(song.SourceId!, out var remote) || !string.Equals(remote.Source, "desktop", StringComparison.OrdinalIgnoreCase)) continue;
             if (string.Equals(song.Lyrics, remote.Lyrics, StringComparison.Ordinal)) continue;
-            try { var m = ToMongoSong(song); m.Tags = remote.Tags?.Count > 0 ? remote.Tags : ["church"]; m.Desktop = "true"; m.Source = "desktop"; await _mongoDb.UpdateSongAsync(song.SourceId!, m); pushedUpdates++; changed = true; } catch { }
+            try
+            {
+                var api = ToApiSong(song); api.Tags = remote.Tags.Count > 0 ? remote.Tags : ["church"]; api.Desktop = "true"; api.Source = "desktop";
+                await _apiClient.UpdateSongAsync(song.SourceId!, api);
+                pushedUpdates++; changed = true;
+            }
+            catch { }
         }
 
+        // Push new local songs
         foreach (var song in _library.Where(s => s.SourceId is null && !string.IsNullOrWhiteSpace(s.Title)).ToList())
         {
             try
             {
-                if (remoteByTitle.TryGetValue(song.Title.Trim(), out var remote)) { song.SourceId = remote.Id; linked++; changed = true; continue; }
-                var m = ToMongoSong(song); m.Tags = ["church"]; m.Desktop = "true"; m.Source = "desktop";
-                var created = await _mongoDb.CreateSongAsync(m); song.SourceId = created.Id; pushed++; changed = true;
-            } catch { }
+                if (remoteByTitle.TryGetValue(song.Title.Trim(), out var remote))
+                {
+                    song.SourceId = remote.Id; linked++; changed = true; continue;
+                }
+                var api = ToApiSong(song); api.Tags = ["church"]; api.Desktop = "true"; api.Source = "desktop";
+                var created = await _apiClient.CreateSongAsync(api);
+                if (created is not null) song.SourceId = created.Id;
+                pushed++; changed = true;
+            }
+            catch { }
         }
         if (changed) { Persist(); FilterLibrary(_librarySearch?.Text ?? string.Empty); }
         return (pushed, linked, pushedUpdates);
     }
 
-    private async Task LoadSongsFromMongoAsync()
+    private async Task LoadSongsFromApiAsync()
     {
-        if (!_data.Sync.UseMongoDb || _mongoDb is not null) return;
+        if (_apiClient is not null) return;
         const int maxRetries = 3;
         for (var attempt = 1; attempt <= maxRetries; attempt++)
         {
             try
             {
-                _mongoDb = new MongoDbService(_data.Sync.MongoDbConnectionString);
-                var remoteSongs = await _mongoDb.GetAllSongsAsync();
-                var bySourceId = remoteSongs.Where(s => !string.IsNullOrEmpty(s.Id)).ToDictionary(s => s.Id, s => s, StringComparer.OrdinalIgnoreCase);
-                foreach (var remote in bySourceId.Values)
+                _apiClient = new SongApiClient();
+                var remoteSongs = await _apiClient.GetAllSongsAsync();
+                var byRemoteId = remoteSongs.Where(s => !string.IsNullOrEmpty(s.Id)).ToDictionary(s => s.Id, s => s, StringComparer.OrdinalIgnoreCase);
+                foreach (var remote in byRemoteId.Values)
                 {
                     var existing = _library.FirstOrDefault(s => s.SourceId == remote.Id);
-                    if (existing is null) { existing = _library.FirstOrDefault(s => s.SourceId is null && string.Equals(s.Title, remote.Title, StringComparison.OrdinalIgnoreCase)); if (existing is not null) existing.SourceId = remote.Id; }
-                    if (existing is null) _library.Add(new Song { SourceId = remote.Id, Title = remote.Title, Lyrics = remote.Lyrics });
-                    else if (string.Equals(remote.Source, "web", StringComparison.OrdinalIgnoreCase)) { existing.Title = remote.Title; existing.Lyrics = remote.Lyrics; }
+                    if (existing is null)
+                    {
+                        existing = _library.FirstOrDefault(s => s.SourceId is null && string.Equals(s.Title, remote.Title, StringComparison.OrdinalIgnoreCase));
+                        if (existing is not null) existing.SourceId = remote.Id;
+                    }
+                    if (existing is null)
+                        _library.Add(new Song { SourceId = remote.Id, Title = remote.Title, Lyrics = remote.Lyrics, Owner = string.IsNullOrWhiteSpace(remote.Owner) ? "web" : remote.Owner, Tags = remote.Tags.Count > 0 ? remote.Tags : ["web"], CreatedAt = remote.CreatedAt == default ? DateTime.UtcNow : remote.CreatedAt, UpdatedAt = remote.UpdatedAt == default ? DateTime.UtcNow : remote.UpdatedAt });
+                    else if (string.Equals(remote.Source, "web", StringComparison.OrdinalIgnoreCase))
+                    {
+                        existing.Title = remote.Title; existing.Lyrics = remote.Lyrics; existing.Owner = string.IsNullOrWhiteSpace(remote.Owner) ? "web" : remote.Owner; existing.Tags = remote.Tags.Count > 0 ? remote.Tags : existing.Tags; existing.UpdatedAt = remote.UpdatedAt == default ? DateTime.UtcNow : remote.UpdatedAt;
+                    }
                 }
                 Persist(); FilterLibrary(_librarySearch?.Text ?? string.Empty); _lastSyncFailed = false; UpdateSyncStatus(true);
-                _ = PushLocalSongsToMongoAsync(); return;
+                _ = PushLocalSongsToApiAsync(); return;
             }
-            catch { _mongoDb = null; if (attempt < maxRetries) await Task.Delay(1000 * attempt); }
+            catch { _apiClient = null; if (attempt < maxRetries) await Task.Delay(1000 * attempt); }
         }
         _lastSyncFailed = true; UpdateSyncStatus(false);
     }
@@ -267,28 +322,18 @@ public partial class Form1 : Form
         else { _statusSync.Text = "\u25cb Offline"; _statusSync.ForeColor = Color.FromArgb(255, 180, 120); _statusSync.ToolTipText = _syncError ?? ""; }
     }
 
-    private void SetMongoUri()
+    private static ApiSong ToApiSong(Song song) => new()
     {
-        using var dialog = new Form { Text = "MongoDB Atlas Connection", Size = new Size(560, 220), StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false };
-        var label = new Label { Text = "Atlas connection string:", AutoSize = true, Location = new Point(12, 12) };
-        var uriBox = new TextBox { Text = _data.Sync.MongoDbConnectionString, Location = new Point(12, 38), Width = 520 };
-        var hint = new Label { Text = "Restart the app after saving.", ForeColor = Color.Gray, AutoSize = true, Location = new Point(12, 68) };
-        var save = new Button { Text = "Save", DialogResult = DialogResult.OK, Location = new Point(360, 105), Width = 80 };
-        var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(452, 105), Width = 80 };
-        dialog.Controls.AddRange([label, uriBox, hint, save, cancel]);
-        dialog.AcceptButton = save; dialog.CancelButton = cancel;
-        if (dialog.ShowDialog(this) != DialogResult.OK) return;
-        _data.Sync.MongoDbConnectionString = uriBox.Text.Trim(); _store.SaveSettings(_data.Sync);
-        _mongoDb?.Dispose(); _mongoDb = null; _syncTimer.Stop();
-        if (_data.Sync.UseMongoDb) { _ = LoadSongsFromMongoAsync(); _syncTimer.Start(); }
-    }
-
-    private async void CheckMongoConnection()
-    {
-        if (!_data.Sync.UseMongoDb) { MessageBox.Show(this, "No MongoDB URI configured.\nUse Set URI on the Help tab.", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
-        try { var testDb = new MongoDbService(_data.Sync.MongoDbConnectionString); var songs = await testDb.GetAllSongsAsync(); MessageBox.Show(this, $"Connected!\n\n{songs.Count} song(s) found.", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Information); }
-        catch (Exception ex) { MessageBox.Show(this, $"Could not connect.\n\n{ex.Message}", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
-    }
+        Title = song.Title,
+        Lyrics = song.Lyrics,
+        SongLanguage = "Other",
+        Tags = song.Tags.Contains("church", StringComparer.OrdinalIgnoreCase) ? song.Tags : [.. song.Tags, "church"],
+        Owner = string.IsNullOrWhiteSpace(song.Owner) ? "app" : song.Owner,
+        Source = "desktop",
+        Desktop = "true",
+        CreatedAt = song.CreatedAt,
+        UpdatedAt = DateTime.UtcNow,
+    };
 
     private void LoadSong(Song song) => LoadSongContent(song.Title, song.Lyrics, song.Id, "Loaded from Song Library");
     private void LoadSongContent(string title, string lyrics, Guid? songId, string source)
@@ -298,8 +343,19 @@ public partial class Form1 : Form
     }
     private void FilterLibrary(string text)
     {
-        if (_libraryList is null) return; _libraryList.BeginUpdate(); _libraryList.Items.Clear();
-        foreach (var song in _library.Where(s => s.Title.Contains(text, StringComparison.OrdinalIgnoreCase))) _libraryList.Items.Add(song);
+        if (_libraryList is null) return;
+        _libraryList.BeginUpdate();
+        _libraryList.Items.Clear();
+        var query = _library.Where(s => string.IsNullOrWhiteSpace(text)
+            || s.Title.Contains(text, StringComparison.OrdinalIgnoreCase)
+            || s.Lyrics.Contains(text, StringComparison.OrdinalIgnoreCase));
+        IEnumerable<Song> sorted = _librarySortMode switch
+        {
+            "recent" => query.OrderByDescending(s => s.CreatedAt),
+            "oldest" => query.OrderBy(s => s.CreatedAt),
+            _ => query.OrderBy(s => s.Title, StringComparer.OrdinalIgnoreCase)
+        };
+        foreach (var song in sorted) _libraryList.Items.Add(song);
         _libraryList.EndUpdate();
     }
     private void AddCurrentSongToAgenda()
@@ -317,7 +373,7 @@ public partial class Form1 : Form
         foreach (var chunk in chunks) { _verseSlideIndexes.Add(_slides.Count); var lines = chunk.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries); for (var start = 0; start < lines.Length; start += maxLines) _slides.Add(string.Join(Environment.NewLine, lines.Skip(start).Take(maxLines))); }
         if (_slides.Count == 0) { _slides.Add("Type song lyrics here"); _verseSlideIndexes.Add(0); }
         _updating = true; _slideList.Items.Clear();
-        for (var index = 0; index < _slides.Count; index++) { var summary = _slides[index].Replace(Environment.NewLine, "  /  "); var verseIndex = _verseSlideIndexes.FindLastIndex(start => start <= index); var part = index == _verseSlideIndexes[verseIndex] ? "" : "b"; _slideList.Items.Add($"V{verseIndex + 1}{part}   {summary}"); }
+        for (var index = 0; index < _slides.Count; index++) { var summary = _slides[index].Replace(Environment.NewLine, "  /  "); _slideList.Items.Add($"V{index + 1}   {summary}"); }
         _currentSlide = Math.Clamp(_currentSlide, 0, _slides.Count - 1); _slideList.SelectedIndex = _currentSlide; _updating = false; RefreshSlides();
     }
     private void SelectSlide(int requested) { if (_slides.Count == 0) return; _currentSlide = Math.Clamp(requested, 0, _slides.Count - 1); _updating = true; _slideList.SelectedIndex = _currentSlide; _updating = false; RefreshSlides(); }
@@ -350,7 +406,14 @@ public partial class Form1 : Form
         if (_projectorButton is not null) { _projectorButton.Text = live ? "\u25a3  Close projector" : "\u25a3  Open projector"; _projectorButton.BackColor = live ? Color.FromArgb(35, 157, 87) : Color.FromArgb(11, 77, 132); }
     }
     private void SetStageMode(StageMode mode) { _stageMode = _stageMode == mode ? StageMode.Slide : mode; if (_stageMode == StageMode.Logo && _logoImage is null) { SetLogoPath(); if (_logoImage is null) _stageMode = StageMode.Slide; } ApplyStageToProjectors(); UpdateStageStatus(); }
-    private void ApplyStageToProjectors() { _projector?.SetStage(_stageMode, _logoImage); _videoProjector?.SetStage(_stageMode, _logoImage); UpdateStageStatus(); }
+    private void ApplyStageToProjectors()
+    {
+        _projector?.SetStage(_stageMode, _logoImage);
+        _videoProjector?.SetStage(_stageMode, _logoImage);
+        if (_audiencePreview is not null) { _audiencePreview.Stage = _stageMode; _audiencePreview.LogoImage = _logoImage; _audiencePreview.Invalidate(); }
+        if (_biblePreview is not null) { _biblePreview.Stage = _stageMode; _biblePreview.LogoImage = _logoImage; _biblePreview.Invalidate(); }
+        UpdateStageStatus();
+    }
     private void UpdateStageStatus()
     {
         if (_blackButton is not null) SetStageButton(_blackButton, _stageMode == StageMode.Black);
@@ -365,7 +428,7 @@ public partial class Form1 : Form
     private static void SetStageButton(Button button, bool active) { button.BackColor = active ? Color.FromArgb(35, 157, 87) : Color.FromArgb(232, 237, 244); button.ForeColor = active ? Color.White : Color.FromArgb(31, 48, 68); }
     private void SetLogoPath() { using var dialog = new OpenFileDialog { Filter = "Image files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All files|*.*", Title = "Choose church logo" }; if (dialog.ShowDialog(this) != DialogResult.OK) return; var path = _store.ImportLogo(dialog.FileName); if (string.IsNullOrEmpty(path)) return; _data.BackgroundPreferences.LogoPath = path; _logoImage?.Dispose(); try { _logoImage = Image.FromFile(path); } catch { _logoImage = null; } Persist(); }
     private void LoadLogoImage() { _logoImage?.Dispose(); _logoImage = null; var path = _data.BackgroundPreferences.LogoPath; if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return; try { _logoImage = Image.FromFile(path); } catch { _logoImage = null; } }
-    private void ChooseTextColor() { using var dialog = new ColorDialog { Color = _theme.TextColor, FullOpen = true }; if (dialog.ShowDialog(this) != DialogResult.OK) return; _theme.TextColor = dialog.Color; _fontColorButton.BackColor = dialog.Color; RefreshSlides(); }
+    private void ChooseTextColor() { using var dialog = new ColorDialog { Color = _theme.TextColor, FullOpen = true }; if (dialog.ShowDialog(this) != DialogResult.OK) return; _theme.TextColor = dialog.Color; _fontColorButton.BackColor = dialog.Color; _fontColorButton.ForeColor = dialog.Color.GetBrightness() > 0.5f ? Color.Black : Color.White; RefreshSlides(); }
     private void ChooseBackgroundColor() { using var dialog = new ColorDialog { Color = _theme.BackgroundColor, FullOpen = true }; if (dialog.ShowDialog(this) != DialogResult.OK) return; _theme.BackgroundColor = dialog.Color; ClearBackgroundSelection(); SaveBackgroundPreferences(); RefreshSlides(); }
     private void ChooseBackgroundImage() { ImportBackground("Image"); }
     private void ToggleProjector()
@@ -390,7 +453,14 @@ public partial class Form1 : Form
     }
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { _clockTimer.Stop(); _clockTimer.Dispose(); _syncTimer.Stop(); _syncTimer.Dispose(); _theme.BackgroundImage?.Dispose(); _videoProjector?.Close(); _mongoDb?.Dispose(); }
+        if (disposing)
+        {
+            _clockTimer.Stop(); _clockTimer.Dispose(); _syncTimer.Stop(); _syncTimer.Dispose();
+            _bgWatcherDebounce.Stop(); _bgWatcherDebounce.Dispose();
+            _bgPollTimer.Stop(); _bgPollTimer.Dispose();
+            _imageWatcher?.Dispose(); _videoWatcher?.Dispose();
+            _theme.BackgroundImage?.Dispose(); _videoProjector?.Close(); _apiClient?.Dispose();
+        }
         base.Dispose(disposing);
     }
 }

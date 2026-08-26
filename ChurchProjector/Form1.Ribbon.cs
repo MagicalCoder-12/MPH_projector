@@ -26,7 +26,8 @@ public partial class Form1
         tabBar.Controls.Add(backgroundTab);
         tabBar.Controls.Add(textTab);
 
-        var ribbonHost = new Panel { Dock = DockStyle.Top, Height = 160, BackColor = Color.White, Padding = new Padding(10, 8, 10, 8) };
+        _ribbonHost = new Panel { Dock = DockStyle.Top, Height = 160, BackColor = Color.White, Padding = new Padding(10, 8, 10, 8) };
+        var ribbonHost = _ribbonHost;
         var textRibbon = BuildTextRibbon();
         var backgroundRibbon = BuildBackgroundRibbon();
         var bibleRibbon = BuildBibleRibbon();
@@ -76,7 +77,7 @@ public partial class Form1
         _statusSlide = new ToolStripStatusLabel("Slide 1 of 1") { ForeColor = Color.White, BorderSides = border };
         _statusProjector = new ToolStripStatusLabel("Projector: off") { ForeColor = Color.White, BorderSides = border };
         _statusClock = new ToolStripStatusLabel(DateTime.Now.ToShortTimeString()) { ForeColor = Color.White, Spring = true, TextAlign = ContentAlignment.MiddleRight };
-        _statusSync = new ToolStripStatusLabel(_data.Sync.UseMongoDb ? "\u25cb Connecting..." : "\u25cb Local mode") { ForeColor = _data.Sync.UseMongoDb ? Color.FromArgb(255, 220, 120) : Color.FromArgb(180, 180, 180), BorderSides = border };
+        _statusSync = new ToolStripStatusLabel("\u25cb Connecting...") { ForeColor = Color.FromArgb(255, 220, 120), BorderSides = border };
         _statusBar.Items.AddRange([_statusTab, _statusSlide, _statusProjector, _statusSync, _statusClock]);
         return _statusBar;
     }
@@ -142,6 +143,10 @@ public partial class Form1
         _pasteButton = Button("📄", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 36, 29);
         _pasteButton.Font = new Font("Segoe UI", 10F);
         _pasteButton.Click += (_, _) => { if (Clipboard.ContainsText()) _lyricsBox.SelectedText = Clipboard.GetText(); };
+        var clipTT = new ToolTip();
+        clipTT.SetToolTip(_cutButton, "Cut selected text");
+        clipTT.SetToolTip(_copyButton, "Copy selected text");
+        clipTT.SetToolTip(_pasteButton, "Paste from clipboard");
         Add(clipboard, _cutButton, _copyButton, _pasteButton);
 
         // Font group - comprehensive font controls like Word
@@ -184,6 +189,7 @@ public partial class Form1
         _superscriptButton.Click += (_, _) => { _theme.Superscript = !_theme.Superscript; _theme.Subscript = false; UpdateSubSuperButtons(); RefreshSlides(); };
         
         _fontColorButton = Button("A", _theme.TextColor, Color.White, 36, 29);
+        _fontColorButton.FlatAppearance.BorderColor = Color.FromArgb(180, 180, 180);
         _fontColorButton.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
         _fontColorButton.Click += (_, _) => ChooseTextColor();
         
@@ -229,7 +235,7 @@ public partial class Form1
         Add(paragraph, Field("Align", _alignment), _bulletsButton, _numberingButton, _decreaseIndentButton, _increaseIndentButton, Field("Spacing", _lineSpacing), Field("Max lines", _maxLines));
 
         // Styles group - quick text styles
-        var styles = RibbonGroup("Styles", 370);
+        var styles = RibbonGroup("Styles", 380);
         var tt = new ToolTip();
         var lightPreview = PreviewStyle("Light", Color.White, Color.FromArgb(28, 34, 45), () => SetTextStyle(Color.White, true));
         tt.SetToolTip(lightPreview, "Light text — white on dark background");
@@ -242,7 +248,7 @@ public partial class Form1
         Add(styles, lightPreview, warmPreview, darkPreview, titlePreview);
 
         // Cloud Sync group
-        var sync = RibbonGroup("Cloud sync", 260);
+        var sync = RibbonGroup("Cloud sync", 300);
         var syncNow = Button("\u21bb  Sync now", _brand, Color.White, 100, 34);
         syncNow.Click += async (_, _) =>
         {
@@ -250,7 +256,7 @@ public partial class Form1
             syncNow.Text = "\u21bb  Syncing...";
             try
             {
-                await SyncFromMongoAsync();
+                await SyncFromApiAsync();
                 _slideStatus.Text = _lastSyncFailed ? $"Sync failed: {_syncError ?? "check connection"}" : "Synced with cloud";
             }
             finally
@@ -259,7 +265,7 @@ public partial class Form1
                 syncNow.Enabled = true;
             }
         };
-        Add(sync, syncNow, Hint(_data.Sync.UseMongoDb ? "Pull web songs and push local songs to MongoDB Atlas." : "Set MongoDB URI in Help tab to enable cloud sync."));
+        Add(sync, syncNow, Hint("Sync songs with the web app at mph-songs.vercel.app"));
 
         ribbon.Controls.AddRange([clipboard, font, paragraph, styles, sync]);
         return ribbon;
@@ -283,35 +289,52 @@ public partial class Form1
         more.Click += (_, _) => ChooseBackgroundColor();
         Add(colour, more);
 
-        var media = RibbonGroup("Saved backgrounds", 390);
-        var choose = Button("Import image", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 95, 34);
-        choose.Click += (_, _) => ChooseBackgroundImage();
-        var video = Button("Import video", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 95, 34);
-        video.Click += (_, _) => ImportBackground("Video");
-        _backgroundPicker = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 180, Margin = new Padding(0, 4, 8, 0) };
-        _backgroundPicker.SelectedIndexChanged += (_, _) => { if (!_updating && _backgroundPicker.SelectedItem is BackgroundAsset asset) ApplyBackgroundAsset(asset); };
-        _videoLoop = new CheckBox { Text = "Loop video", Checked = _theme.VideoLoop, AutoSize = true, Margin = new Padding(0, 10, 8, 0) };
-        _videoLoop.CheckedChanged += (_, _) => { _theme.VideoLoop = _videoLoop.Checked; SaveBackgroundPreferences(); RefreshSlides(); };
-        var clear = Button("Clear", Color.White, Color.FromArgb(31, 48, 68), 55, 30);
-        clear.Click += (_, _) => { ClearBackgroundSelection(); SaveBackgroundPreferences(); RefreshSlides(); };
-        var logo = Button("Set logo", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 80, 34);
-        logo.Click += (_, _) => SetLogoPath();
-        Add(media, choose, video, logo, _backgroundPicker, _videoLoop, clear, Hint("Imported files are kept in the MPH Songs background library. Set a logo to use the Logo stage button."));
-        RefreshBackgroundPicker();
+        _imageGallery = new BackgroundGalleryPanel("Image") { Margin = new Padding(3, 14, 9, 3) };
+        _imageGallery.AssetSelected += asset => { if (_updating) return; if (asset is null) SetSolidBackground(Color.Black); else ApplyBackgroundAsset(asset); };
+        _imageGallery.ExpandRequested += () => ShowGalleryDropdown("Image", _imageGallery);
+        _videoGallery = new BackgroundGalleryPanel("Video") { Margin = new Padding(3, 14, 9, 3) };
+        _videoGallery.AssetSelected += asset => { if (_updating) return; if (asset is null) SetSolidBackground(Color.Black); else ApplyBackgroundAsset(asset); };
+        _videoGallery.ExpandRequested += () => ShowGalleryDropdown("Video", _videoGallery);
 
-        var brightness = RibbonGroup("Brightness", 180);
-        _brightness = new TrackBar { Minimum = -75, Maximum = 75, Value = _theme.Brightness, TickFrequency = 25, Width = 145, Height = 38 };
+        var brightness = RibbonGroup("Brightness", 320);
+        var sun = new Label { Text = "☀", ForeColor = Color.FromArgb(240, 180, 30), Font = new Font("Segoe UI", 14F), AutoSize = true, Margin = new Padding(0, 2, 2, 0) };
+        var minus = new Label { Text = "−", ForeColor = Color.FromArgb(110, 120, 132), AutoSize = true, Margin = new Padding(2, 7, 2, 0), Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
+        var plus = new Label { Text = "+", ForeColor = Color.FromArgb(110, 120, 132), AutoSize = true, Margin = new Padding(2, 7, 0, 0), Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
+        _brightness = new TrackBar { Minimum = -75, Maximum = 75, Value = _theme.Brightness, TickFrequency = 25, Width = 120, Height = 30, AutoSize = false };
         _brightness.ValueChanged += (_, _) => { _theme.Brightness = _brightness.Value; SaveBackgroundPreferences(); RefreshSlides(); };
-        Add(brightness, _brightness);
+        _videoLoop = new CheckBox { Text = "Loop video", Checked = _theme.VideoLoop, AutoSize = true, Margin = new Padding(8, 7, 0, 0) };
+        _videoLoop.CheckedChanged += (_, _) => { _theme.VideoLoop = _videoLoop.Checked; SaveBackgroundPreferences(); RefreshSlides(); };
+        Add(brightness, sun, minus, _brightness, plus, _videoLoop);
+        RefreshBackgroundGalleries();
 
-        var ratio = RibbonGroup("Aspect ratio", 360);
-        foreach (var value in new[] { "16:9", "4:3", "16:10", "9:16", "3:4", "Current" })
+        var animation = RibbonGroup("Animation", 300);
+        var animNone = Button("▢", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 56, 56);
+        animNone.Font = new Font("Segoe UI", 14F);
+        animNone.FlatAppearance.BorderColor = Color.FromArgb(210, 218, 227);
+        var animOverlap = Button("▣", Color.FromArgb(200, 205, 210), Color.FromArgb(31, 48, 68), 56, 56);
+        animOverlap.Font = new Font("Segoe UI", 14F);
+        animOverlap.FlatAppearance.BorderColor = Color.FromArgb(160, 170, 180);
+        var animOut1 = Button("⤢", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 56, 56);
+        animOut1.Font = new Font("Segoe UI", 12F);
+        var animOut2 = Button("⤡", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 56, 56);
+        animOut2.Font = new Font("Segoe UI", 12F);
+        var animTip = new ToolTip();
+        animTip.SetToolTip(animNone, "No animation");
+        animTip.SetToolTip(animOverlap, "Cross fade (selected)");
+        animTip.SetToolTip(animOut1, "Zoom in");
+        animTip.SetToolTip(animOut2, "Zoom out");
+        Add(animation, animNone, animOverlap, animOut1, animOut2);
+
+        var ratio = RibbonGroup("Aspect ratio", 430);
+        foreach (var value in new[] { "Current", "4:3.2", "4:3", "16:10", "16:9", "16:8" })
         {
-            var choice = Button(value, value == _theme.AspectRatio ? _brand : Color.White, value == _theme.AspectRatio ? Color.White : Color.FromArgb(31, 48, 68), value.Length > 5 ? 64 : 52, 32);
+            var isCurrent = string.Equals(value, _theme.AspectRatio, StringComparison.OrdinalIgnoreCase) || (value == "Current" && string.Equals(_theme.AspectRatio, "Current", StringComparison.OrdinalIgnoreCase));
+            var w = value == "Current" ? 66 : 56;
+            var choice = Button(value, isCurrent ? _brand : Color.White, isCurrent ? Color.White : Color.FromArgb(31, 48, 68), w, 32);
             choice.Click += (_, _) => SetAspectRatio(value, ratio);
             Add(ratio, choice);
         }
-        ribbon.Controls.AddRange([colour, media, brightness, ratio]);
+        ribbon.Controls.AddRange([colour, _imageGallery, _videoGallery, brightness, animation, ratio]);
         return ribbon;
     }
 

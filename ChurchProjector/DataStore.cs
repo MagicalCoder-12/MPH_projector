@@ -15,9 +15,7 @@ public sealed class AppData
 
 public sealed class AppSyncPreferences
 {
-    public string MongoDbConnectionString { get; set; } =
-        Environment.GetEnvironmentVariable("MPH_MONGODB_URI") ?? string.Empty;
-    public bool UseMongoDb => !string.IsNullOrEmpty(MongoDbConnectionString);
+    public bool UseCloudSync { get; set; } = true;
 }
 
 public sealed class BackgroundAsset
@@ -44,12 +42,16 @@ public sealed class BackgroundPreferences
 public sealed class Song
 {
     public Song() { }
-    public Song(string title, string lyrics) { Title = title; Lyrics = lyrics; }
+    public Song(string title, string lyrics) { Title = title; Lyrics = lyrics; Owner = "app"; Tags = ["church"]; CreatedAt = DateTime.UtcNow; UpdatedAt = DateTime.UtcNow; }
 
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Title { get; set; } = "";
     public string Lyrics { get; set; } = "";
     public string? SourceId { get; set; }
+    public string Owner { get; set; } = "app";
+    public List<string> Tags { get; set; } = ["church"];
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public override string ToString() => Title;
 }
 
@@ -86,15 +88,13 @@ public sealed class LocalDataStore
     private readonly string _filePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "MPH Songs", "library.json");
-    private readonly string _settingsPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "MPH Songs", "settings.json");
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true, PropertyNameCaseInsensitive = true };
     private string BackgroundRoot => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "MPH_projector");
     private string ImageDirectory => Path.Combine(BackgroundRoot, "images");
     private string VideoDirectory => Path.Combine(BackgroundRoot, "videos");
+    public string GetBackgroundFolder(string kind) => kind == "Video" ? VideoDirectory : ImageDirectory;
     private string LogosDirectory => Path.Combine(BackgroundRoot, "logos");
     private static readonly string DefaultLogoName = "Logo.jpg";
 
@@ -106,9 +106,7 @@ public sealed class LocalDataStore
                 ? JsonSerializer.Deserialize<AppData>(File.ReadAllText(_filePath), Options)
                 : null;
             if (data is null) data = new AppData();
-            var settings = LoadSettings();
-            if (!string.IsNullOrEmpty(settings.MongoDbConnectionString))
-                data.Sync.MongoDbConnectionString = settings.MongoDbConnectionString;
+
             return data;
         }
         catch
@@ -126,6 +124,21 @@ public sealed class LocalDataStore
             var tempPath = _filePath + ".tmp";
             File.WriteAllText(tempPath, json);
             File.Replace(tempPath, _filePath, null);
+            try
+            {
+                var appFile = Path.Combine(Path.GetDirectoryName(_filePath)!, "app.json");
+                var appData = new AppData
+                {
+                    Songs = data.Songs.Where(s => s.Owner == "app").ToList(),
+                    Agenda = data.Agenda,
+                    Bibles = data.Bibles,
+                    Backgrounds = data.Backgrounds,
+                    BackgroundPreferences = data.BackgroundPreferences,
+                    Sync = data.Sync
+                };
+                File.WriteAllText(appFile, JsonSerializer.Serialize(appData, Options));
+            }
+            catch { }
         }
         catch (IOException ex)
         {
@@ -134,28 +147,7 @@ public sealed class LocalDataStore
         }
     }
 
-    public AppSyncPreferences LoadSettings()
-    {
-        try
-        {
-            if (!File.Exists(_settingsPath)) return new AppSyncPreferences();
-            return JsonSerializer.Deserialize<AppSyncPreferences>(File.ReadAllText(_settingsPath), Options) ?? new AppSyncPreferences();
-        }
-        catch
-        {
-            return new AppSyncPreferences();
-        }
-    }
 
-    public void SaveSettings(AppSyncPreferences settings)
-    {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(_settingsPath)!);
-            File.WriteAllText(_settingsPath, JsonSerializer.Serialize(settings, Options));
-        }
-        catch { }
-    }
 
     public string Serialize(AppData data) => JsonSerializer.Serialize(data, Options);
 

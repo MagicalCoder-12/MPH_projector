@@ -19,12 +19,14 @@ public partial class Form1
         var libraryOuter = Section("Song library", "");
         var libraryContent = (TableLayoutPanel)libraryOuter.Tag!;
 
-        // Two rows:
+        // Three rows:
         // Row 0 = Search box
-        // Row 1 = Song list
-        libraryContent.RowCount = 2;
+        // Row 1 = Sort filter
+        // Row 2 = Song list
+        libraryContent.RowCount = 3;
         libraryContent.RowStyles.Clear();
         libraryContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // Search
+        libraryContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // Sort
         libraryContent.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Song list fills remaining space
 
         // Search box
@@ -37,6 +39,21 @@ public partial class Form1
 
         _librarySearch.TextChanged += (_, _) => FilterLibrary(_librarySearch.Text);
         libraryContent.Controls.Add(_librarySearch, 0, 0);
+
+        // Sort filter - alphabetical default
+        var sortPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Margin = new Padding(0, 0, 0, 6), WrapContents = false };
+        sortPanel.Controls.Add(new Label { Text = "Sort:", AutoSize = true, ForeColor = Color.FromArgb(77, 93, 111), Font = new Font("Segoe UI", 8F, FontStyle.Bold), Margin = new Padding(0, 4, 6, 0) });
+        _librarySort = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150, Margin = new Padding(0, 0, 0, 0) };
+        _librarySort.Items.AddRange(["Alphabetical", "Recent", "Oldest"]);
+        _librarySort.SelectedIndex = 0;
+        _librarySortMode = "alphabetical";
+        _librarySort.SelectedIndexChanged += (_, _) =>
+        {
+            _librarySortMode = _librarySort.SelectedItem?.ToString()?.ToLowerInvariant() ?? "alphabetical";
+            FilterLibrary(_librarySearch.Text);
+        };
+        sortPanel.Controls.Add(_librarySort);
+        libraryContent.Controls.Add(sortPanel, 0, 1);
 
         // Song list
         _libraryList = new ListBox
@@ -60,7 +77,7 @@ public partial class Form1
                 LoadSong(s);
         };
 
-        libraryContent.Controls.Add(_libraryList, 0, 1);
+        libraryContent.Controls.Add(_libraryList, 0, 2);
 
         // Populate the library immediately so songs are visible on startup
         FilterLibrary("");
@@ -267,7 +284,7 @@ public partial class Form1
 
     private Control PreviewStyle(string name, Color background, Color foreground, Action action)
     {
-        var panel = new Panel { Width = 72, Height = 48, BackColor = Color.White, Margin = new Padding(4), Cursor = Cursors.Hand };
+        var panel = new Panel { Width = 72, Height = 56, BackColor = Color.White, Margin = new Padding(4), Cursor = Cursors.Hand };
         var preview = new Panel { Width = 60, Height = 30, BackColor = background, Location = new Point(6, 8) };
         var sample = new Label { Text = "Aa", ForeColor = foreground, Font = new Font("Segoe UI", 10F, FontStyle.Bold), AutoSize = true, Location = new Point((preview.Width - 18) / 2, (preview.Height - 16) / 2) };
         preview.Controls.Add(sample);
