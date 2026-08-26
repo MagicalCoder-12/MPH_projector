@@ -300,7 +300,8 @@ public partial class Form1
     private RibbonIconButton AlignButton(RibbonGlyph glyph, string tip)
     {
         var button = new RibbonIconButton { Glyph = glyph, Width = 28, Height = 40, Margin = new Padding(0, 0, 4, 0) };
-        button.ToolTipText = tip;
+        var tipService = new ToolTip();
+        tipService.SetToolTip(button, tip);
         return button;
     }
 
@@ -319,9 +320,10 @@ public partial class Form1
             Cursor = Cursors.Hand,
             UseVisualStyleBackColor = false,
             Margin = new Padding(0, 0, 4, 0),
-            ToolTipText = tip,
             Tag = false
         };
+        var tipService = new ToolTip();
+        tipService.SetToolTip(button, tip);
         button.MouseEnter += (_, _) => button.BackColor = button.Tag is true ? RibbonIconButton.ActiveBack : RibbonIconButton.HoverBack;
         button.MouseLeave += (_, _) => button.BackColor = button.Tag is true ? RibbonIconButton.ActiveBack : RibbonIconButton.IdleBack;
         return button;
