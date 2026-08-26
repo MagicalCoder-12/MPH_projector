@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace ChurchProjector;
 
 public partial class Form1 : Form
@@ -26,33 +28,29 @@ public partial class Form1 : Form
     private ComboBox _fontFamily = null!;
     private NumericUpDown _fontSize = null!;
     private CheckBox _autoFit = null!;
-    private Button _boldButton = null!;
-    private Button _italicButton = null!;
-    private Button _underlineButton = null!;
-    private Button _strikethroughButton = null!;
-    private Button _subscriptButton = null!;
-    private Button _superscriptButton = null!;
-    private Button _fontColorButton = null!;
-    private Button _highlightColorButton = null!;
-    private Button _clearFormattingButton = null!;
-    private Button _cutButton = null!;
-    private Button _copyButton = null!;
-    private Button _pasteButton = null!;
-    private Button _bulletsButton = null!;
-    private Button _numberingButton = null!;
-    private Button _decreaseIndentButton = null!;
-    private Button _increaseIndentButton = null!;
+    private RibbonButton _boldButton = null!;
+    private RibbonButton _italicButton = null!;
+    private RibbonButton _underlineButton = null!;
+    private RibbonButton _strikethroughButton = null!;
+    private RibbonButton _subscriptButton = null!;
+    private RibbonButton _superscriptButton = null!;
+    private RibbonButton _fontColorButton = null!;
+    private RibbonButton _clearFormattingButton = null!;
+    private RibbonButton _cutButton = null!;
+    private RibbonButton _copyButton = null!;
+    private RibbonButton _pasteButton = null!;
+    private RibbonButton _bulletsButton = null!;
+    private RibbonButton _numberingButton = null!;
     private NumericUpDown _lineSpacing = null!;
     private ComboBox _alignment = null!;
     private NumericUpDown _maxLines = null!;
     private TrackBar _brightness = null!;
-    private ComboBox _backgroundPicker = null!;
+    private ListView _backgroundList = null!;
     private CheckBox _videoLoop = null!;
     private Control _songWorkspace = null!;
     private Control _bibleWorkspace = null!;
     private Control _helpWorkspace = null!;
     private SlideCanvas _biblePreview = null!;
-    private ListBox _bibleList = null!;
     private ListBox _bibleVerseList = null!;
     private ListBox _bibleAgendaList = null!;
     private ListBox _bibleBookList = null!;
@@ -60,11 +58,6 @@ public partial class Form1 : Form
     private ComboBox _bibleTranslationPicker = null!;
     private TextBox _bibleReferenceBox = null!;
     private Label _bibleReferenceLabel = null!;
-    private TextBox _bibleNameBox = null!;
-    private TextBox _bibleBookBox = null!;
-    private NumericUpDown _bibleChapter = null!;
-    private NumericUpDown _bibleVerseNumber = null!;
-    private RichTextBox _bibleVerseText = null!;
     private ProjectorForm? _projector;
     private VideoProjectorWindow? _videoProjector;
     private int _currentSlide;
@@ -72,6 +65,10 @@ public partial class Form1 : Form
     private Guid? _currentBibleId;
     private Guid? _currentBibleVerseId;
     private bool _updating;
+    private bool _dirty;
+    private readonly List<Image> _backgroundThumbs = [];
+    private readonly ToolTip _toolTips = new();
+    private Label _headerSubtitle = null!;
 
     private StatusStrip _statusBar = null!;
     private ToolStripStatusLabel _statusTab = null!;
@@ -115,6 +112,7 @@ public partial class Form1 : Form
         SyncConfiguredBackgrounds();
         RestoreBackgroundPreferences();
         LoadLogoImage();
+        ApplyApplicationIcon();
         BuildInterface();
         _ = LoadSongsFromMongoAsync();
         StartSyncTimer();
@@ -137,7 +135,9 @@ public partial class Form1 : Form
 
     private void ImportConfiguredTeluguBible()
     {
-        const string teluguBiblePath = @"C:\Users\ajith\AppData\Roaming\MPH_projector\Bible\telugu.db";
+        var teluguBiblePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "MPH_projector", "Bible", "telugu.db");
         if (!File.Exists(teluguBiblePath) || _bibles.Any(bible => string.Equals(bible.Name, "Telugu_Bible_BSI", StringComparison.OrdinalIgnoreCase))) return;
         try { _bibles.Add(_store.ImportSqliteBible(teluguBiblePath)); Persist(); }
         catch { }
@@ -257,6 +257,13 @@ public partial class Form1 : Form
     private void UpdateSyncStatus(bool success, int pulled = 0, int merged = 0, int updated = 0, int pushed = 0, int linked = 0)
     {
         if (_statusSync is null) return;
+        if (!_data.Sync.UseMongoDb)
+        {
+            _statusSync.Text = "\u25cb Local mode";
+            _statusSync.ForeColor = Color.FromArgb(190, 190, 190);
+            _statusSync.ToolTipText = "Cloud sync is disabled. Set a MongoDB URI on the Help tab to enable it.";
+            return;
+        }
         if (success)
         {
             var parts = new List<string>();
@@ -281,6 +288,21 @@ public partial class Form1 : Form
         _data.Sync.MongoDbConnectionString = uriBox.Text.Trim(); _store.SaveSettings(_data.Sync);
         _mongoDb?.Dispose(); _mongoDb = null; _syncTimer.Stop();
         if (_data.Sync.UseMongoDb) { _ = LoadSongsFromMongoAsync(); _syncTimer.Start(); }
+        else UpdateSyncStatus(false);
+    }
+
+    private void DisableMongoSync()
+    {
+        if (_data.Sync.MongoDbConnectionString.Length == 0) return;
+        _data.Sync.MongoDbConnectionString = string.Empty;
+        _store.SaveSettings(_data.Sync);
+        _syncTimer.Stop();
+        _mongoDb?.Dispose();
+        _mongoDb = null;
+        _lastSyncFailed = false;
+        _syncError = null;
+        UpdateSyncStatus(false);
+        if (_slideStatus is not null) _slideStatus.Text = "Cloud sync disabled — working from the local library";
     }
 
     private async void CheckMongoConnection()
@@ -295,6 +317,7 @@ public partial class Form1 : Form
     {
         _updating = true; _titleBox.Text = title; _lyricsBox.Text = lyrics; _currentSongId = songId; _updating = false;
         RebuildSlides(); _slideStatus.Text = source + " - " + title;
+        MarkDirty(false);
     }
     private void FilterLibrary(string text)
     {
@@ -306,7 +329,14 @@ public partial class Form1 : Form
     {
         var name = string.IsNullOrWhiteSpace(_titleBox.Text) ? "Untitled song" : _titleBox.Text.Trim();
         _agenda.Add(new AgendaItem { SongId = _currentSongId, Title = name, LyricsSnapshot = _lyricsBox.Text });
-        Persist(); RefreshAgenda(); _agendaList.SelectedIndex = _agenda.Count - 1;
+        Persist(); RefreshAgenda();
+        if (_agendaList is not null)
+        {
+            _updating = true;
+            _agendaList.SelectedIndex = _agenda.Count - 1;
+            _updating = false;
+        }
+        _slideStatus.Text = "Added to service agenda: " + name;
     }
     private void RebuildSlides()
     {
@@ -330,17 +360,74 @@ public partial class Form1 : Form
         if (_statusSlide is not null) _statusSlide.Text = $"Slide {_currentSlide + 1} of {_slides.Count}";
         _projector?.SetSlide(_slides[_currentSlide], _theme); _videoProjector?.SetSlide(_slides[_currentSlide], _theme);
     }
-    private void SetTextStyle(Color color, bool bold) { _theme.TextColor = color; _theme.Bold = bold; _fontColorButton.BackColor = color; UpdateBoldButton(); RefreshSlides(); }
-    private void UpdateBoldButton() { _boldButton.BackColor = _theme.Bold ? _brand : Color.FromArgb(232, 237, 244); _boldButton.ForeColor = _theme.Bold ? Color.White : Color.FromArgb(31, 48, 68); }
-    private void UpdateItalicButton() { _italicButton.BackColor = _theme.Italic ? _brand : Color.FromArgb(232, 237, 244); _italicButton.ForeColor = _theme.Italic ? Color.White : Color.FromArgb(31, 48, 68); }
-    private void UpdateUnderlineButton() { _underlineButton.BackColor = _theme.Underline ? _brand : Color.FromArgb(232, 237, 244); _underlineButton.ForeColor = _theme.Underline ? Color.White : Color.FromArgb(31, 48, 68); }
-    private void UpdateStrikethroughButton() { _strikethroughButton.BackColor = _theme.Strikethrough ? _brand : Color.FromArgb(232, 237, 244); _strikethroughButton.ForeColor = _theme.Strikethrough ? Color.White : Color.FromArgb(31, 48, 68); }
-    private void UpdateSubSuperButtons() { _subscriptButton.BackColor = _theme.Subscript ? _brand : Color.FromArgb(232, 237, 244); _subscriptButton.ForeColor = _theme.Subscript ? Color.White : Color.FromArgb(31, 48, 68); _superscriptButton.BackColor = _theme.Superscript ? _brand : Color.FromArgb(232, 237, 244); _superscriptButton.ForeColor = _theme.Superscript ? Color.White : Color.FromArgb(31, 48, 68); }
-    private void ChooseHighlightColor() { using var dialog = new ColorDialog { Color = Color.FromArgb(255, 255, 153), FullOpen = true }; if (dialog.ShowDialog(this) != DialogResult.OK) return; _highlightColorButton.BackColor = dialog.Color; RefreshSlides(); }
-    private void ClearFormatting() { _theme.Bold = false; _theme.Italic = false; _theme.Underline = false; _theme.Strikethrough = false; _theme.Subscript = false; _theme.Superscript = false; _theme.TextColor = Color.Black; UpdateBoldButton(); UpdateItalicButton(); UpdateUnderlineButton(); UpdateStrikethroughButton(); UpdateSubSuperButtons(); _fontColorButton.BackColor = Color.Black; _fontColorButton.ForeColor = Color.White; RefreshSlides(); }
-    private void ToggleBullets() { if (_lyricsBox.SelectionLength == 0) return; var start = _lyricsBox.SelectionStart; var text = _lyricsBox.Text; var lineStart = text.LastIndexOf('\n', start - 1) + 1; var lineEnd = text.IndexOf('\n', start); if (lineEnd < 0) lineEnd = text.Length; var line = text.Substring(lineStart, lineEnd - lineStart); if (line.TrimStart().StartsWith("• ")) _lyricsBox.Text = text.Substring(0, lineStart) + line.Replace("• ", "", StringComparison.Ordinal) + text.Substring(lineEnd); else _lyricsBox.Text = text.Substring(0, lineStart) + "• " + line.TrimStart() + text.Substring(lineEnd); _lyricsBox.SelectionStart = start; RebuildSlides(); }
-    private void ToggleNumbering() { if (_lyricsBox.SelectionLength == 0) return; var start = _lyricsBox.SelectionStart; var text = _lyricsBox.Text; var lineStart = text.LastIndexOf('\n', start - 1) + 1; var lineEnd = text.IndexOf('\n', start); if (lineEnd < 0) lineEnd = text.Length; var line = text.Substring(lineStart, lineEnd - lineStart); if (System.Text.RegularExpressions.Regex.IsMatch(line.TrimStart(), @"^\d+\.\s")) _lyricsBox.Text = text.Substring(0, lineStart) + System.Text.RegularExpressions.Regex.Replace(line.TrimStart(), @"^\d+\.\s", "") + text.Substring(lineEnd); else _lyricsBox.Text = text.Substring(0, lineStart) + "1. " + line.TrimStart() + text.Substring(lineEnd); _lyricsBox.SelectionStart = start; RebuildSlides(); }
-    private void AdjustIndent(int delta) { if (_lyricsBox.SelectionLength == 0) return; }
+    private void SetTextStyle(Color color, bool bold) { _theme.TextColor = color; _theme.Bold = bold; UpdateFontColourButton(); UpdateBoldButton(); RefreshSlides(); }
+    private void UpdateBoldButton() => _boldButton.SetActive(_theme.Bold);
+    private void UpdateItalicButton() => _italicButton.SetActive(_theme.Italic);
+    private void UpdateUnderlineButton() => _underlineButton.SetActive(_theme.Underline);
+    private void UpdateStrikethroughButton() => _strikethroughButton.SetActive(_theme.Strikethrough);
+    private void UpdateSubSuperButtons() { _subscriptButton.SetActive(_theme.Subscript); _superscriptButton.SetActive(_theme.Superscript); }
+    private void UpdateFontColourButton()
+    {
+        _fontColorButton.BackColor = _theme.TextColor;
+        _fontColorButton.ForeColor = _theme.TextColor.GetBrightness() > 0.55F ? Color.FromArgb(31, 48, 68) : Color.White;
+    }
+    private void ClearFormatting()
+    {
+        _theme.Bold = false; _theme.Italic = false; _theme.Underline = false;
+        _theme.Strikethrough = false; _theme.Subscript = false; _theme.Superscript = false;
+        _theme.TextColor = Color.White; _theme.HighlightColor = Color.Transparent;
+        UpdateBoldButton(); UpdateItalicButton(); UpdateUnderlineButton(); UpdateStrikethroughButton(); UpdateSubSuperButtons();
+        UpdateFontColourButton();
+        RefreshSlides();
+    }
+
+    private void ToggleBullets() => ToggleLinePrefix("• ", line => line.TrimStart().StartsWith("• ", StringComparison.Ordinal), line => line.TrimStart()[2..]);
+
+    private void ToggleNumbering() => ToggleLinePrefix("1. ", line => System.Text.RegularExpressions.Regex.IsMatch(line.TrimStart(), @"^\d+\.\s"), line => System.Text.RegularExpressions.Regex.Replace(line.TrimStart(), @"^\d+\.\s", ""));
+
+    /// <summary>
+    /// Adds or removes a line prefix (bullets or numbering) on the current line,
+    /// or on every line touched by the current selection.
+    /// </summary>
+    private void ToggleLinePrefix(string prefix, Func<string, bool> hasPrefix, Func<string, string> stripPrefix)
+    {
+        var lines = _lyricsBox.Lines;
+        if (lines.Length == 0) return;
+        var firstLine = Math.Clamp(_lyricsBox.GetLineFromCharIndex(_lyricsBox.SelectionStart), 0, lines.Length - 1);
+        var lastLine = _lyricsBox.SelectionLength > 0
+            ? Math.Clamp(_lyricsBox.GetLineFromCharIndex(Math.Max(_lyricsBox.SelectionStart, _lyricsBox.SelectionStart + _lyricsBox.SelectionLength - 1)), firstLine, lines.Length - 1)
+            : firstLine;
+
+        var prefixed = 0;
+        for (var index = firstLine; index <= lastLine; index++)
+            if (hasPrefix(lines[index])) prefixed++;
+
+        var removing = prefixed == lastLine - firstLine + 1 && prefixed > 0;
+        var updated = new string[lines.Length];
+        for (var index = 0; index < lines.Length; index++)
+        {
+            if (index < firstLine || index > lastLine) { updated[index] = lines[index]; continue; }
+            var line = lines[index];
+            var indent = line[..(line.Length - line.TrimStart().Length)];
+            var body = line.TrimStart();
+            updated[index] = removing ? indent + stripPrefix(body) : indent + prefix + body;
+        }
+
+        var firstLineStart = _lyricsBox.GetFirstCharIndexFromLine(firstLine);
+        var caretOffset = Math.Max(0, _lyricsBox.SelectionStart - firstLineStart);
+
+        _updating = true;
+        _lyricsBox.Lines = updated;
+        _updating = false;
+
+        var newLineStart = Math.Min(_lyricsBox.GetFirstCharIndexFromLine(firstLine), _lyricsBox.TextLength);
+        var newLineLength = firstLine >= 0 && firstLine < _lyricsBox.Lines.Length ? _lyricsBox.Lines[firstLine].Length : 0;
+        _lyricsBox.SelectionStart = Math.Min(newLineStart + caretOffset, newLineStart + newLineLength);
+        _lyricsBox.SelectionLength = 0;
+        _lyricsBox.Focus();
+        MarkDirty();
+        RebuildSlides();
+    }
     private void UpdateProjectorStatus()
     {
         if (_statusProjector is null) return;
@@ -348,6 +435,7 @@ public partial class Form1 : Form
         _statusProjector.Text = live ? "\u25cf Projector: live" : "Projector: off";
         _statusProjector.ForeColor = live ? Color.FromArgb(150, 230, 180) : Color.White;
         if (_projectorButton is not null) { _projectorButton.Text = live ? "\u25a3  Close projector" : "\u25a3  Open projector"; _projectorButton.BackColor = live ? Color.FromArgb(35, 157, 87) : Color.FromArgb(11, 77, 132); }
+        UpdateHeaderSubtitle();
     }
     private void SetStageMode(StageMode mode) { _stageMode = _stageMode == mode ? StageMode.Slide : mode; if (_stageMode == StageMode.Logo && _logoImage is null) { SetLogoPath(); if (_logoImage is null) _stageMode = StageMode.Slide; } ApplyStageToProjectors(); UpdateStageStatus(); }
     private void ApplyStageToProjectors() { _projector?.SetStage(_stageMode, _logoImage); _videoProjector?.SetStage(_stageMode, _logoImage); UpdateStageStatus(); }
@@ -361,11 +449,64 @@ public partial class Form1 : Form
         if (!live) return;
         var detail = _stageMode switch { StageMode.Black => "black screen", StageMode.Background => "background only", StageMode.Logo => "logo", _ => "live" };
         _statusProjector.Text = $"\u25cf Projector: {detail}";
+        UpdateHeaderSubtitle();
     }
     private static void SetStageButton(Button button, bool active) { button.BackColor = active ? Color.FromArgb(35, 157, 87) : Color.FromArgb(232, 237, 244); button.ForeColor = active ? Color.White : Color.FromArgb(31, 48, 68); }
+
+    private void UpdateHeaderSubtitle()
+    {
+        if (_headerSubtitle is null) return;
+        var live = (_projector is { IsDisposed: false }) || _videoProjector is not null;
+        _headerSubtitle.Text = live ? "Sunday service · Projector live" : "Sunday service · Ready";
+    }
+
+    private void Tip(Control control, string text) => _toolTips.SetToolTip(control, text);
+
+    private void MarkDirty(bool changed = true)
+    {
+        _dirty = changed;
+        UpdateWindowTitle();
+        if (!changed) return;
+        if (_slideStatus is not null && !string.IsNullOrWhiteSpace(_titleBox?.Text))
+            _slideStatus.Text = "Editing · " + _titleBox.Text.Trim() + " (unsaved changes)";
+    }
+
+    private void UpdateWindowTitle()
+    {
+        var title = string.IsNullOrWhiteSpace(_titleBox?.Text) ? "Untitled song" : _titleBox.Text.Trim();
+        Text = _dirty ? $"MPH Songs — {title} *" : $"MPH Songs — {title}";
+    }
+
+    private void ApplyApplicationIcon()
+    {
+        try
+        {
+            var path = _data.BackgroundPreferences.LogoPath;
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return;
+            using var image = Image.FromFile(path);
+            using var bitmap = new Bitmap(image);
+            var handle = bitmap.GetHicon();
+            try
+            {
+                using var temp = Icon.FromHandle(handle);
+                Icon = (Icon)temp.Clone();
+            }
+            finally
+            {
+                DestroyIcon(handle);
+            }
+        }
+        catch
+        {
+            // A missing or corrupt logo must never prevent startup.
+        }
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool DestroyIcon(IntPtr handle);
     private void SetLogoPath() { using var dialog = new OpenFileDialog { Filter = "Image files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All files|*.*", Title = "Choose church logo" }; if (dialog.ShowDialog(this) != DialogResult.OK) return; var path = _store.ImportLogo(dialog.FileName); if (string.IsNullOrEmpty(path)) return; _data.BackgroundPreferences.LogoPath = path; _logoImage?.Dispose(); try { _logoImage = Image.FromFile(path); } catch { _logoImage = null; } Persist(); }
     private void LoadLogoImage() { _logoImage?.Dispose(); _logoImage = null; var path = _data.BackgroundPreferences.LogoPath; if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return; try { _logoImage = Image.FromFile(path); } catch { _logoImage = null; } }
-    private void ChooseTextColor() { using var dialog = new ColorDialog { Color = _theme.TextColor, FullOpen = true }; if (dialog.ShowDialog(this) != DialogResult.OK) return; _theme.TextColor = dialog.Color; _fontColorButton.BackColor = dialog.Color; RefreshSlides(); }
+    private void ChooseTextColor() { using var dialog = new ColorDialog { Color = _theme.TextColor, FullOpen = true }; if (dialog.ShowDialog(this) != DialogResult.OK) return; _theme.TextColor = dialog.Color; UpdateFontColourButton(); RefreshSlides(); }
     private void ChooseBackgroundColor() { using var dialog = new ColorDialog { Color = _theme.BackgroundColor, FullOpen = true }; if (dialog.ShowDialog(this) != DialogResult.OK) return; _theme.BackgroundColor = dialog.Color; ClearBackgroundSelection(); SaveBackgroundPreferences(); RefreshSlides(); }
     private void ChooseBackgroundImage() { ImportBackground("Image"); }
     private void ToggleProjector()
@@ -378,19 +519,51 @@ public partial class Form1 : Form
     }
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
+        if (keyData == (Keys.Control | Keys.S)) { SaveCurrentSong(); return true; }
+        if (keyData == (Keys.Control | Keys.N)) { NewSong(); return true; }
+        if (keyData == (Keys.Control | Keys.Enter) && _currentTab == "text") { AddCurrentSongToAgenda(); return true; }
+
         var verse = keyData switch { Keys.D1 or Keys.NumPad1 => 1, Keys.D2 or Keys.NumPad2 => 2, Keys.D3 or Keys.NumPad3 => 3, Keys.D4 or Keys.NumPad4 => 4, Keys.D5 or Keys.NumPad5 => 5, Keys.D6 or Keys.NumPad6 => 6, Keys.D7 or Keys.NumPad7 => 7, Keys.D8 or Keys.NumPad8 => 8, Keys.D9 or Keys.NumPad9 => 9, _ => 0 };
         if (_currentTab == "text" && verse > 0 && verse <= _verseSlideIndexes.Count) { SelectSlide(_verseSlideIndexes[verse - 1]); return true; }
         if (keyData is Keys.Down or Keys.PageDown or Keys.Right) { SelectSlide(_currentSlide + 1); return true; }
         if (keyData is Keys.Up or Keys.PageUp or Keys.Left) { SelectSlide(_currentSlide - 1); return true; }
+        if (keyData == Keys.Home) { SelectSlide(0); return true; }
+        if (keyData == Keys.End) { SelectSlide(_slides.Count - 1); return true; }
         if (keyData == Keys.F2) { SetStageMode(StageMode.Black); return true; }
         if (keyData == Keys.F3) { SetStageMode(StageMode.Background); return true; }
         if (keyData == Keys.F4) { SetStageMode(StageMode.Logo); return true; }
         if (keyData == Keys.F5) { ToggleProjector(); return true; }
+        if (keyData == Keys.Escape && ((_projector is { IsDisposed: false }) || _videoProjector is not null)) { ToggleProjector(); return true; }
         return base.ProcessCmdKey(ref msg, keyData);
     }
+
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        if (_dirty && e.CloseReason == CloseReason.UserClosing)
+        {
+            var title = string.IsNullOrWhiteSpace(_titleBox?.Text) ? "Untitled song" : _titleBox.Text.Trim();
+            var result = MessageBox.Show(this,
+                $"You have unsaved changes to \"{title}\".\n\nSave them before exiting?",
+                "MPH Songs", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+            if (result == DialogResult.Cancel) { e.Cancel = true; return; }
+            if (result == DialogResult.Yes && !SaveCurrentSongCore()) { e.Cancel = true; return; }
+        }
+        base.OnFormClosing(e);
+    }
+
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { _clockTimer.Stop(); _clockTimer.Dispose(); _syncTimer.Stop(); _syncTimer.Dispose(); _theme.BackgroundImage?.Dispose(); _videoProjector?.Close(); _mongoDb?.Dispose(); }
+        if (disposing)
+        {
+            _clockTimer.Stop(); _clockTimer.Dispose();
+            _syncTimer.Stop(); _syncTimer.Dispose();
+            _toolTips.Dispose();
+            foreach (var thumb in _backgroundThumbs) thumb.Dispose();
+            _backgroundThumbs.Clear();
+            _theme.BackgroundImage?.Dispose();
+            _videoProjector?.Close();
+            _mongoDb?.Dispose();
+        }
         base.Dispose(disposing);
     }
 }

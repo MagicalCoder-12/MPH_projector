@@ -89,11 +89,14 @@ public sealed class SlideCanvas : Control
         var style = FontStyle.Regular;
         if (theme.Bold) style |= FontStyle.Bold;
         if (theme.Italic) style |= FontStyle.Italic;
-        
+        if (theme.Underline) style |= FontStyle.Underline;
+        if (theme.Strikethrough) style |= FontStyle.Strikethrough;
+
         var availableWidth = Math.Max(40, canvas.Width - (canvas.Width * 16 / 100));
         var textArea = new RectangleF(canvas.X + canvas.Width * .08F, canvas.Y + canvas.Height * .12F, availableWidth, canvas.Height * .76F);
         var baseSize = Math.Max(12, canvas.Width * theme.FontSize / 1280F);
         var fontSize = theme.AutoFit ? FitFontSize(graphics, text, textArea, theme.FontFamily, style, baseSize) : baseSize;
+        if (theme.Subscript || theme.Superscript) fontSize = Math.Max(12, fontSize * 0.72F);
         using var font = new Font(theme.FontFamily, fontSize, style, GraphicsUnit.Pixel);
         using var format = new StringFormat 
         { 

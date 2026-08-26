@@ -1,3 +1,5 @@
+using System.Drawing.Drawing2D;
+
 namespace ChurchProjector;
 
 public partial class Form1
@@ -30,14 +32,67 @@ public partial class Form1
 
     private void RefreshBackgroundPicker()
     {
-        if (_backgroundPicker is null) return;
+        if (_backgroundList is null) return;
         _updating = true;
-        _backgroundPicker.BeginUpdate();
-        _backgroundPicker.Items.Clear();
-        foreach (var asset in _backgrounds.OrderBy(item => item.Name)) _backgroundPicker.Items.Add(asset);
-        _backgroundPicker.SelectedItem = _backgrounds.FirstOrDefault(item => item.Id == _theme.BackgroundAssetId);
-        _backgroundPicker.EndUpdate();
+        _backgroundList.BeginUpdate();
+        _backgroundList.Items.Clear();
+
+        foreach (var thumb in _backgroundThumbs) thumb.Dispose();
+        _backgroundThumbs.Clear();
+        _backgroundList.LargeImageList?.Dispose();
+
+        var images = new ImageList { ImageSize = new Size(72, 40), ColorDepth = ColorDepth.Depth32Bit };
+        _backgroundList.LargeImageList = images;
+        var selectedId = _theme.BackgroundAssetId;
+        foreach (var asset in _backgrounds.OrderBy(item => item.Name))
+        {
+            var thumb = MakeBackgroundThumbnail(asset);
+            _backgroundThumbs.Add(thumb);
+            images.Images.Add(thumb);
+            var item = new ListViewItem(asset.Name) { Tag = asset, ImageIndex = images.Images.Count - 1 };
+            _backgroundList.Items.Add(item);
+            if (asset.Id == selectedId) item.Selected = true;
+        }
+        _backgroundList.EndUpdate();
         _updating = false;
+    }
+
+    private Bitmap MakeBackgroundThumbnail(BackgroundAsset asset)
+    {
+        var thumb = new Bitmap(72, 40);
+        try
+        {
+            using var graphics = Graphics.FromImage(thumb);
+            graphics.SmoothingMode = SmoothingMode.HighQuality;
+            graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            if (asset.Kind == "Video" || !File.Exists(asset.FilePath))
+            {
+                graphics.Clear(Color.FromArgb(31, 46, 66));
+                using var font = new Font("Segoe UI", 8F);
+                using var brush = new SolidBrush(Color.FromArgb(190, 220, 240));
+                using var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                graphics.DrawString(asset.Kind == "Video" ? "VIDEO" : "MISSING", font, brush, new RectangleF(0, 0, 72, 40), format);
+            }
+            else
+            {
+                using var source = Image.FromFile(asset.FilePath);
+                var scale = Math.Max(72f / source.Width, 40f / source.Height);
+                var width = source.Width * scale;
+                var height = source.Height * scale;
+                var x = (72f - width) / 2f;
+                var y = (40f - height) / 2f;
+                graphics.DrawImage(source, new RectangleF(x, y, width, height), 0, 0, source.Width, source.Height, GraphicsUnit.Pixel);
+                using var shade = new SolidBrush(Color.FromArgb(70, 0, 0, 0));
+                graphics.FillRectangle(shade, 0, 0, 72, 40);
+            }
+            return thumb;
+        }
+        catch
+        {
+            using var graphics = Graphics.FromImage(thumb);
+            graphics.Clear(Color.FromArgb(88, 100, 114));
+            return thumb;
+        }
     }
 
     private void ImportBackground(string kind)
@@ -59,6 +114,24 @@ public partial class Form1
         {
             MessageBox.Show(this, $"The {kind.ToLowerInvariant()} could not be added to the background library.\n\n" + exception.Message, "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
+    }
+
+    private void DeleteBackgroundAsset()
+    {
+        if (_backgroundList is null || _backgroundList.SelectedItems.Count == 0) return;
+        var asset = (BackgroundAsset)_backgroundList.SelectedItems[0].Tag!;
+        if (!DialogHelpers.Confirm(this, "Remove background",
+                $"Remove '{asset.Name}' from the background library?\n\nThe file is deleted from this computer.", destructive: true)) return;
+        if (!_store.DeleteBackgroundFile(asset.FilePath))
+        {
+            MessageBox.Show(this, "The file could not be deleted because it is not part of the MPH background library.", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        _backgrounds.Remove(asset);
+        Persist();
+        if (_theme.BackgroundAssetId == asset.Id) ClearBackgroundSelection();
+        RefreshBackgroundPicker();
+        RefreshSlides();
     }
 
     private void ApplyBackgroundAsset(BackgroundAsset asset, bool save = true)
@@ -83,10 +156,17 @@ public partial class Form1
                 using var source = Image.FromFile(asset.FilePath);
                 _theme.BackgroundImage = new Bitmap(source);
             }
-            if (_backgroundPicker is not null && _backgroundPicker.SelectedItem != asset)
+            if (_backgroundList is not null)
             {
                 _updating = true;
-                _backgroundPicker.SelectedItem = asset;
+                foreach (ListViewItem item in _backgroundList.Items)
+                {
+                    if ((item.Tag as BackgroundAsset)?.Id == asset.Id)
+                    {
+                        item.Selected = true;
+                        item.EnsureVisible();
+                    }
+                }
                 _updating = false;
             }
             if (save) SaveBackgroundPreferences();
@@ -112,10 +192,10 @@ public partial class Form1
         _theme.BackgroundImage = null;
         _theme.BackgroundVideoPath = null;
         _theme.BackgroundAssetId = null;
-        if (_backgroundPicker is not null)
+        if (_backgroundList is not null)
         {
             _updating = true;
-            _backgroundPicker.SelectedIndex = -1;
+            foreach (ListViewItem item in _backgroundList.Items) item.Selected = false;
             _updating = false;
         }
     }

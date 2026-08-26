@@ -254,6 +254,27 @@ public sealed class LocalDataStore
         };
     }
 
+    /// <summary>
+    /// Deletes a background file when it lives inside the MPH background
+    /// library. Files outside the library are left untouched.
+    /// </summary>
+    public bool DeleteBackgroundFile(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath)) return true;
+        var full = Path.GetFullPath(filePath);
+        var root = Path.GetFullPath(BackgroundRoot + Path.DirectorySeparatorChar);
+        if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return false;
+        try
+        {
+            File.Delete(full);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public IEnumerable<BackgroundAsset> DiscoverBackgroundAssets()
     {
         var imageExtensions = new[] { ".jpg", ".jpeg", ".png", ".bmp", ".gif" };

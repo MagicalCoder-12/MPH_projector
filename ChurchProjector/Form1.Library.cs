@@ -81,7 +81,6 @@ public partial class Form1
         Persist();
         LoadLogoImage();
         FilterLibrary("");
-        RefreshBibleList();
         RefreshBibleTranslationPicker();
         RefreshBackgroundPicker();
         RefreshAgenda();

@@ -98,10 +98,14 @@ public sealed class VideoProjectorWindow : Window
         _lyrics.Text = text;
         _lyrics.FontFamily = new System.Windows.Media.FontFamily(theme.FontFamily);
         var baseSize = Math.Max(24, theme.FontSize * Math.Max(1, ActualWidth / 1280D));
+        if (theme.Subscript || theme.Superscript) baseSize *= 0.72;
         _lyrics.FontSize = theme.AutoFit && ActualWidth > 0
             ? FitFontSizeWpf(text, theme.FontFamily, theme.Bold, baseSize, _canvas.ActualWidth - 160, _canvas.ActualHeight - 160)
             : baseSize;
         _lyrics.FontWeight = theme.Bold ? FontWeights.Bold : FontWeights.Normal;
+        _lyrics.TextDecorations = theme.Underline
+            ? TextDecorations.Underline
+            : theme.Strikethrough ? TextDecorations.Strikethrough : null;
         _lyrics.Foreground = new SolidColorBrush(ToMediaColor(theme.TextColor));
         _lyrics.TextAlignment = theme.Alignment switch
         {

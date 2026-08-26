@@ -6,68 +6,25 @@ public partial class Form1
     {
         var outer = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10, 10, 10, 12), BackColor = Color.FromArgb(241, 244, 247) };
 
-        // Left: library  | Right: editor (middle) | verses + preview (right)
+        // Left: song library + service agenda | Right: editor | slides + preview
         var mainSplit = new SplitContainer
         {
             Dock = DockStyle.Fill,
-            Orientation = Orientation.Vertical,   
+            Orientation = Orientation.Vertical,
             BackColor = Color.FromArgb(241, 244, 247),
             SplitterWidth = 6
         };
 
-        // Left panel: Song Library
-        var libraryOuter = Section("Song library", "");
-        var libraryContent = (TableLayoutPanel)libraryOuter.Tag!;
-
-        // Two rows:
-        // Row 0 = Search box
-        // Row 1 = Song list
-        libraryContent.RowCount = 2;
-        libraryContent.RowStyles.Clear();
-        libraryContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // Search
-        libraryContent.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Song list fills remaining space
-
-        // Search box
-        _librarySearch = new TextBox
-        {
-            PlaceholderText = "Search songs",
-            Dock = DockStyle.Fill,
-            Margin = new Padding(0, 0, 0, 6)
-        };
-
-        _librarySearch.TextChanged += (_, _) => FilterLibrary(_librarySearch.Text);
-        libraryContent.Controls.Add(_librarySearch, 0, 0);
-
-        // Song list
-        _libraryList = new ListBox
+        var leftSplit = new SplitContainer
         {
             Dock = DockStyle.Fill,
-            BorderStyle = BorderStyle.FixedSingle,
-            IntegralHeight = false,
-            Font = new Font("Segoe UI", 10F),
-            Margin = new Padding(0)
+            Orientation = Orientation.Horizontal,
+            BackColor = Color.FromArgb(241, 244, 247),
+            SplitterWidth = 6
         };
-
-        _libraryList.DoubleClick += (_, _) =>
-        {
-            if (_libraryList.SelectedItem is Song song)
-                LoadSong(song);
-        };
-
-        _libraryList.SelectedIndexChanged += (_, _) =>
-        {
-            if (!_updating && _libraryList.SelectedItem is Song s)
-                LoadSong(s);
-        };
-
-        libraryContent.Controls.Add(_libraryList, 0, 1);
-
-        // Populate the library immediately so songs are visible on startup
-        FilterLibrary("");
-
-        // Add the library section to the left panel
-        mainSplit.Panel1.Controls.Add(libraryOuter);
-
+        leftSplit.Panel1.Controls.Add(BuildLibraryPanel());
+        leftSplit.Panel2.Controls.Add(BuildAgendaPanel());
+        mainSplit.Panel1.Controls.Add(leftSplit);
 
         var rightSplit = new SplitContainer
         {
@@ -76,11 +33,8 @@ public partial class Form1
             BackColor = Color.FromArgb(241, 244, 247),
             SplitterWidth = 6
         };
-
-        // Middle column
         rightSplit.Panel1.Controls.Add(BuildEditorPanel());
 
-        // Right column (Verses + Preview)
         var previewSplit = new SplitContainer
         {
             Dock = DockStyle.Fill,
@@ -88,19 +42,113 @@ public partial class Form1
             BackColor = Color.FromArgb(241, 244, 247),
             SplitterWidth = 6
         };
-
         previewSplit.Panel1.Controls.Add(BuildSlidesPanel());
         previewSplit.Panel2.Controls.Add(BuildPreviewPanel());
-
         rightSplit.Panel2.Controls.Add(previewSplit);
 
-        LayoutSplit(rightSplit, rightSplit.Panel2, 0.65f);
-        LayoutSplit(previewSplit, previewSplit.Panel2, 0.40f);
-            
         mainSplit.Panel2.Controls.Add(rightSplit);
         outer.Controls.Add(mainSplit);
+
+        LayoutSplit(mainSplit, mainSplit.Panel2, 0.25f);
+        LayoutSplit(leftSplit, leftSplit.Panel1, 0.55f);
+        LayoutSplit(rightSplit, rightSplit.Panel2, 0.68f);
+        LayoutSplit(previewSplit, previewSplit.Panel1, 0.52f);
         return outer;
-    }  
+    }
+
+    private Control BuildLibraryPanel()
+    {
+        var outer = Section("Song library", "Select a song to edit it");
+        var content = (TableLayoutPanel)outer.Tag!;
+        content.RowCount = 2;
+        content.RowStyles.Clear();
+        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        _librarySearch = new TextBox
+        {
+            PlaceholderText = "Search songs",
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0, 0, 0, 6)
+        };
+        _librarySearch.TextChanged += (_, _) => FilterLibrary(_librarySearch.Text);
+        content.Controls.Add(_librarySearch, 0, 0);
+
+        _libraryList = new ListBox
+        {
+            Dock = DockStyle.Fill,
+            BorderStyle = BorderStyle.FixedSingle,
+            IntegralHeight = false,
+            Font = new Font("Segoe UI", 10F),
+            Margin = new Padding(0)
+        };
+        _libraryList.DoubleClick += (_, _) =>
+        {
+            if (_libraryList.SelectedItem is Song song)
+                LoadSong(song);
+        };
+        _libraryList.SelectedIndexChanged += (_, _) =>
+        {
+            if (!_updating && _libraryList.SelectedItem is Song s)
+                LoadSong(s);
+        };
+        content.Controls.Add(_libraryList, 0, 1);
+
+        FilterLibrary("");
+        return outer;
+    }
+
+    private Control BuildAgendaPanel()
+    {
+        var outer = Section("Service agenda", "The order of songs for this service");
+        var content = (TableLayoutPanel)outer.Tag!;
+        content.RowCount = 2;
+        content.RowStyles.Clear();
+        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var actions = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            Height = 78,
+            WrapContents = true,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+        var add = Button("+ Add current", _brand, Color.White, 110, 34);
+        add.Click += (_, _) => AddCurrentSongToAgenda();
+        Tip(add, "Add the song you're editing to the service order (Ctrl+Enter)");
+        var update = Button("Update", Color.White, Color.FromArgb(31, 48, 68), 84, 34);
+        update.Click += (_, _) => UpdateAgendaItem();
+        Tip(update, "Replace the selected agenda item with the current title and lyrics");
+        var remove = Button("Remove", Color.White, Color.FromArgb(177, 59, 54), 84, 34);
+        remove.Click += (_, _) => RemoveAgendaItem();
+        Tip(remove, "Remove the selected agenda item");
+        var up = Button("▲", Color.White, Color.FromArgb(31, 48, 68), 44, 34);
+        up.Click += (_, _) => MoveAgendaItem(-1);
+        Tip(up, "Move the selected item earlier in the service order");
+        var down = Button("▼", Color.White, Color.FromArgb(31, 48, 68), 44, 34);
+        down.Click += (_, _) => MoveAgendaItem(1);
+        Tip(down, "Move the selected item later in the service order");
+        actions.Controls.AddRange([add, update, remove, up, down]);
+
+        _agendaList = new ListBox
+        {
+            Dock = DockStyle.Fill,
+            BorderStyle = BorderStyle.FixedSingle,
+            IntegralHeight = false,
+            Font = new Font("Segoe UI", 10F),
+            Margin = new Padding(0, 7, 0, 0)
+        };
+        _agendaList.SelectedIndexChanged += (_, _) =>
+        {
+            if (!_updating) LoadAgendaItem();
+        };
+
+        content.Controls.Add(actions, 0, 0);
+        content.Controls.Add(_agendaList, 0, 1);
+        return outer;
+    }
 
     private Control BuildSlidesPanel()
     {
@@ -118,54 +166,25 @@ public partial class Form1
         return outer;
     }
 
+    /// <summary>
+    /// Sizes a splitter once the controlled panel has its real size, so the
+    /// interface opens with sensible proportions on any monitor.
+    /// </summary>
     private static void LayoutSplit(SplitContainer split, Control measured, float fraction)
     {
         var initialised = false;
         measured.Resize += (_, _) =>
         {
-            if (initialised || measured.ClientSize.Width < 80) return;
+            if (initialised) return;
+            var span = split.Orientation == Orientation.Vertical ? measured.ClientSize.Width : measured.ClientSize.Height;
+            if (span < 80) return;
             initialised = true;
-            split.SplitterDistance = Math.Max(split.Panel1MinSize, (int)(measured.ClientSize.Width * fraction));
+            var distance = (int)(span * fraction);
+            if (split.Orientation == Orientation.Vertical)
+                split.SplitterDistance = Math.Max(split.Panel1MinSize, Math.Min(split.Width - split.Panel2MinSize - split.SplitterWidth, distance));
+            else
+                split.SplitterDistance = Math.Max(split.Panel1MinSize, Math.Min(split.Height - split.Panel2MinSize - split.SplitterWidth, distance));
         };
-    }
-
-    private Control BuildAgendaPanel()
-    {
-        var outer = Section("Service agenda", "Songs selected for this service");
-        var content = (TableLayoutPanel)outer.Tag!;
-        content.RowCount = 5;
-        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        content.RowStyles.Add(new RowStyle(SizeType.Percent, 48));
-        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        content.RowStyles.Add(new RowStyle(SizeType.Percent, 52));
-
-        var agendaActions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 34, WrapContents = false, Margin = new Padding(0) };
-        var add = Button("Add song", _brand, Color.White, 72, 32);
-        add.Click += (_, _) => AddCurrentSongToAgenda();
-        var remove = Button("Remove", Color.White, Color.FromArgb(31, 48, 68), 56, 32);
-        remove.Click += (_, _) => RemoveAgendaItem();
-        var update = Button("Update", Color.White, Color.FromArgb(31, 48, 68), 55, 32);
-        update.Click += (_, _) => UpdateAgendaItem();
-        var up = Button("Up", Color.White, Color.FromArgb(31, 48, 68), 28, 32);
-        up.Click += (_, _) => MoveAgendaItem(-1);
-        var down = Button("Down", Color.White, Color.FromArgb(31, 48, 68), 36, 32);
-        down.Click += (_, _) => MoveAgendaItem(1);
-        agendaActions.Controls.AddRange([add, remove, update, up, down]);
-        _agendaList = new ListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 10F), Margin = new Padding(0, 7, 0, 10) };
-        _agendaList.SelectedIndexChanged += (_, _) => { if (!_updating) LoadAgendaItem(); };
-        var libraryTitle = SmallLabel("SONG LIBRARY");
-        var search = new TextBox { PlaceholderText = "Search songs", Dock = DockStyle.Top, Margin = new Padding(0, 0, 0, 6) };
-        search.TextChanged += (_, _) => FilterLibrary(search.Text);
-        _libraryList = new ListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 10F) };
-        _libraryList.DoubleClick += (_, _) => { if (_libraryList.SelectedItem is Song song) LoadSong(song); };
-        content.Controls.Add(agendaActions, 0, 0);
-        content.Controls.Add(_agendaList, 0, 1);
-        content.Controls.Add(libraryTitle, 0, 2);
-        content.Controls.Add(search, 0, 3);
-        content.Controls.Add(_libraryList, 0, 4);
-        FilterLibrary("");
-        return outer;
     }
 
     private Control BuildEditorPanel()
@@ -173,30 +192,42 @@ public partial class Form1
         var outer = Section("Song editor", "Edit lyrics — slides update as you type");
         var content = (TableLayoutPanel)outer.Tag!;
         content.RowCount = 5;
+        content.RowStyles.Clear();
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        content.RowStyles.Add(new RowStyle(SizeType.Absolute, 135));
-        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         var songActions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 34, WrapContents = false, Margin = new Padding(0, 0, 0, 5) };
-        var newSong = Button("New song", Color.White, Color.FromArgb(31, 48, 68), 100, 32);
+        var newSong = Button("New song", Color.White, Color.FromArgb(31, 48, 68), 96, 32);
         newSong.Click += (_, _) => NewSong();
-        var saveSong = Button("Save", _brand, Color.White, 62, 32);
+        Tip(newSong, "Start a blank song (Ctrl+N)");
+        var saveSong = Button("Save", _brand, Color.White, 72, 32);
         saveSong.Click += (_, _) => SaveCurrentSong();
+        Tip(saveSong, "Save the current song (Ctrl+S)");
         var deleteSong = Button("Delete", Color.White, Color.FromArgb(177, 59, 54), 66, 32);
         deleteSong.Click += (_, _) => DeleteCurrentSong();
+        Tip(deleteSong, "Delete the current song from the library");
         songActions.Controls.AddRange([newSong, saveSong, deleteSong]);
         content.Controls.Add(songActions, 0, 0);
+
         content.Controls.Add(SmallLabel("SONG TITLE"), 0, 1);
         _titleBox = new TextBox { Dock = DockStyle.Top, Font = new Font("Segoe UI", 12F, FontStyle.Bold), Margin = new Padding(0, 0, 0, 8) };
-        _titleBox.TextChanged += (_, _) => { if (_slideStatus is not null) _slideStatus.Text = "Editing · " + (string.IsNullOrWhiteSpace(_titleBox.Text) ? "Untitled song" : _titleBox.Text); };
+        _titleBox.TextChanged += (_, _) => { if (!_updating) MarkDirty(); };
         content.Controls.Add(_titleBox, 0, 2);
-        _lyricsBox = new RichTextBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, Font = new Font("Segoe UI", 12F), AcceptsTab = true, Margin = new Padding(0, 0, 0, 8) };
-        _lyricsBox.TextChanged += (_, _) => { if (!_updating) RebuildSlides(); };
+
+        _lyricsBox = new RichTextBox
+        {
+            Dock = DockStyle.Fill,
+            BorderStyle = BorderStyle.FixedSingle,
+            Font = new Font("Segoe UI", 12F),
+            AcceptsTab = true,
+            Margin = new Padding(0, 0, 0, 8)
+        };
+        _lyricsBox.TextChanged += (_, _) => { if (!_updating) { RebuildSlides(); MarkDirty(); } };
         content.Controls.Add(_lyricsBox, 0, 3);
+
         _slideStatus = new Label { ForeColor = Color.FromArgb(88, 103, 120), AutoSize = true, Margin = new Padding(0, 2, 0, 0) };
         content.Controls.Add(_slideStatus, 0, 4);
         return outer;
@@ -211,17 +242,28 @@ public partial class Form1
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        _audiencePreview = new SlideCanvas { Dock = DockStyle.Fill, Theme = _theme, Margin = new Padding(0, 0, 0, 9), BackColor = Color.FromArgb(22, 28, 37) };
+
+        _audiencePreview = new SlideCanvas
+        {
+            Dock = DockStyle.Fill,
+            Theme = _theme,
+            Margin = new Padding(0, 0, 0, 9),
+            BackColor = Color.FromArgb(22, 28, 37)
+        };
         var previewLabel = SmallLabel("PREVIEW");
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 38, WrapContents = false, Margin = new Padding(0) };
-        var previous = Button("‹  Previous", Color.White, Color.FromArgb(31, 48, 68), 92, 33);
+        var previous = Button("‹  Previous", Color.White, Color.FromArgb(31, 48, 68), 96, 33);
         previous.Click += (_, _) => SelectSlide(_currentSlide - 1);
-        var live = Button("●  Go live", Color.FromArgb(35, 157, 87), Color.White, 86, 33);
+        Tip(previous, "Previous slide (↑ or ←)");
+        var live = Button("●  Project", Color.FromArgb(35, 157, 87), Color.White, 88, 33);
         live.Click += (_, _) => ToggleProjector();
-        var next = Button("Next  ›", _brand, Color.White, 78, 33);
+        Tip(live, "Open the borderless projector window (F5)");
+        var next = Button("Next  ›", _brand, Color.White, 84, 33);
         next.Click += (_, _) => SelectSlide(_currentSlide + 1);
+        Tip(next, "Next slide (↓ or →)");
         buttons.Controls.AddRange([previous, live, next]);
-        var help = new Label { Text = "Tip: use ↑ / ↓ to change slides", ForeColor = Color.FromArgb(112, 125, 138), AutoSize = true, Margin = new Padding(0, 7, 0, 0) };
+        var help = new Label { Text = "Tip: use ↑ / ↓ or Page Up / Page Down to change slides", ForeColor = Color.FromArgb(112, 125, 138), AutoSize = true, Margin = new Padding(0, 7, 0, 0) };
+
         content.Controls.Add(_audiencePreview, 0, 0);
         content.Controls.Add(previewLabel, 0, 1);
         content.Controls.Add(buttons, 0, 2);
@@ -244,9 +286,9 @@ public partial class Form1
         return outer;
     }
 
-    private Panel RibbonGroup(string title, int width)
+    private Panel RibbonGroup(string title, int width, int height = 130)
     {
-        var group = new Panel { Width = width, Height = 130, Margin = new Padding(0, 0, 8, 0), Padding = new Padding(9, 28, 9, 22), BackColor = Color.White };
+        var group = new Panel { Width = width, Height = height, Margin = new Padding(0, 0, 8, 0), Padding = new Padding(9, 28, 9, 22), BackColor = Color.White };
         group.Paint += (_, e) => { using var pen = new Pen(_panelBorder); e.Graphics.DrawLine(pen, group.Width - 1, 28, group.Width - 1, group.Height - 4); };
         var label = new Label { Text = title.ToUpperInvariant(), ForeColor = Color.FromArgb(77, 93, 111), Font = new Font("Segoe UI", 9F, FontStyle.Bold), AutoSize = true, Location = new Point(10, 6) };
         var items = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, AutoSize = false, BackColor = Color.White, Padding = new Padding(6, 6, 6, 6) };
@@ -256,13 +298,13 @@ public partial class Form1
         return group;
     }
 
-    private Button StyleButton(string label, Color background, Color foreground, Action action)
+    private static void EnableHorizontalWheel(ScrollableControl panel)
     {
-        var btn = Button(label, background, foreground, 72, 48);
-        btn.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
-        btn.FlatAppearance.BorderSize = 0;
-        btn.Click += (_, _) => action();
-        return btn;
+        panel.MouseWheel += (_, e) =>
+        {
+            var current = -panel.AutoScrollPosition.X;
+            panel.AutoScrollPosition = new Point(current - e.Delta, 0);
+        };
     }
 
     private Control PreviewStyle(string name, Color background, Color foreground, Action action)
@@ -283,9 +325,9 @@ public partial class Form1
 
     private static void Add(Panel group, params Control[] controls) => ((FlowLayoutPanel)group.Tag!).Controls.AddRange(controls);
 
-    private static Control Field(string label, Control input)
+    private static Control Field(string label, Control input, int width = 118)
     {
-        var panel = new FlowLayoutPanel { Width = 118, Height = 52, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0, 0, 8, 0) };
+        var panel = new FlowLayoutPanel { Width = width, Height = 56, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0, 0, 8, 0) };
         panel.Controls.Add(new Label { Text = label, ForeColor = Color.FromArgb(86, 99, 114), AutoSize = true });
         panel.Controls.Add(input);
         return panel;
@@ -304,13 +346,6 @@ public partial class Form1
         Font = new Font("Segoe UI", 9F, FontStyle.Bold), Margin = new Padding(0, 0, 6, 0), Cursor = Cursors.Hand,
         FlatAppearance = { BorderColor = Color.FromArgb(196, 206, 216), BorderSize = 1 }, UseVisualStyleBackColor = false
     };
-
-    private Button Preset(string text, Color background, Color foreground, Action action)
-    {
-        var button = Button(text, background, foreground, 79, 47);
-        button.Click += (_, _) => action();
-        return button;
-    }
 
     private static Label Hint(string text) => new() { Text = text, ForeColor = Color.FromArgb(112, 125, 138), AutoSize = true, MaximumSize = new Size(210, 0), Margin = new Padding(8, 7, 0, 0) };
     private static Label SmallLabel(string text) => new() { Text = text, ForeColor = Color.FromArgb(77, 93, 111), Font = new Font("Segoe UI", 8F, FontStyle.Bold), AutoSize = true, Margin = new Padding(0, 0, 0, 4) };

@@ -67,6 +67,8 @@ htmlcov/
 # .NET build output
 [Bb]in/
 [Oo]bj/
+publish/
+out/
 
 # Visual Studio
 .vs/

@@ -4,12 +4,22 @@ public partial class Form1
 {
     private async void SaveCurrentSong()
     {
+        if (!SaveCurrentSongCore()) return;
+        await PushSavedSongToCloudAsync();
+    }
+
+    /// <summary>
+    /// Saves the current title and lyrics to the local library.
+    /// Returns false (and tells the user) when the song cannot be saved.
+    /// </summary>
+    private bool SaveCurrentSongCore()
+    {
         var title = _titleBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(title))
         {
             MessageBox.Show(this, "Enter a song title before saving.", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Information);
             _titleBox.Focus();
-            return;
+            return false;
         }
 
         var song = _currentSongId is Guid id ? _library.FirstOrDefault(item => item.Id == id) : null;
@@ -22,41 +32,46 @@ public partial class Form1
         song.Title = title;
         song.Lyrics = _lyricsBox.Text;
         Persist();
-        FilterLibrary("");
+        FilterLibrary(_librarySearch?.Text ?? string.Empty);
         if (_libraryList is not null) _libraryList.SelectedItem = song;
         _slideStatus.Text = "Saved - " + song.Title;
+        MarkDirty(false);
+        return true;
+    }
 
-        if (_data.Sync.UseMongoDb && _mongoDb is not null)
+    private async Task PushSavedSongToCloudAsync()
+    {
+        if (!_data.Sync.UseMongoDb || _mongoDb is null) return;
+        var song = _currentSongId is Guid id ? _library.FirstOrDefault(item => item.Id == id) : null;
+        if (song is null) return;
+        try
         {
-            try
+            var mongoSong = ToMongoSong(song);
+            if (song.SourceId is null)
             {
-                var mongoSong = ToMongoSong(song);
-                if (song.SourceId is null)
+                mongoSong.Tags = ["church"];
+                mongoSong.Desktop = "true";
+                mongoSong.Source = "desktop";
+                var created = await _mongoDb.CreateSongAsync(mongoSong);
+                song.SourceId = created.Id;
+                Persist();
+            }
+            else
+            {
+                var existing = await _mongoDb.GetSongByIdAsync(song.SourceId);
+                if (existing is not null && string.Equals(existing.Source, "web", StringComparison.OrdinalIgnoreCase))
                 {
-                    mongoSong.Tags = ["church"];
-                    mongoSong.Desktop = "true";
-                    mongoSong.Source = "desktop";
-                    var created = await _mongoDb.CreateSongAsync(mongoSong);
-                    song.SourceId = created.Id;
-                    Persist();
+                    _slideStatus.Text = "Saved locally only (web-owned)";
                 }
                 else
                 {
-                    var existing = await _mongoDb.GetSongByIdAsync(song.SourceId);
-                    if (existing is not null && string.Equals(existing.Source, "web", StringComparison.OrdinalIgnoreCase))
-                    {
-                        _slideStatus.Text = "Saved locally only (web-owned)";
-                    }
-                    else
-                    {
-                        await _mongoDb.UpdateSongAsync(song.SourceId, mongoSong);
-                    }
+                    await _mongoDb.UpdateSongAsync(song.SourceId, mongoSong);
                 }
             }
-            catch
-            {
-                // ignore sync failure; local save already succeeded
-            }
+        }
+        catch
+        {
+            // ignore sync failure; local save already succeeded
         }
     }
 
@@ -71,7 +86,7 @@ public partial class Form1
         if (MessageBox.Show(this, $"Delete '{song.Title}' from the Song Library?\n\nAgenda entries are kept as snapshots.", "MPH Songs", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
         _library.Remove(song);
         Persist();
-        FilterLibrary("");
+        FilterLibrary(_librarySearch?.Text ?? string.Empty);
         NewSong();
 
         if (_data.Sync.UseMongoDb && _mongoDb is not null && song.SourceId is not null)
@@ -90,6 +105,7 @@ public partial class Form1
     private void NewSong()
     {
         LoadSongContent("", "", null, "New song");
+        MarkDirty(true);
         _titleBox.Focus();
     }
 

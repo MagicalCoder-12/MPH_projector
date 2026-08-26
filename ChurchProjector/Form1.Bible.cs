@@ -2,33 +2,29 @@ namespace ChurchProjector;
 
 public partial class Form1
 {
-    private static readonly string[] CanonicalBookOrder =
-    [
-        "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy", "Joshua", "Judges", "Ruth", "1 Samuel", "2 Samuel",
-        "1 Kings", "2 Kings", "1 Chronicles", "2 Chronicles", "Ezra", "Nehemiah", "Esther", "Job", "Psalm", "Proverbs",
-        "Ecclesiastes", "Song of Solomon", "Isaiah", "Jeremiah", "Lamentations", "Ezekiel", "Daniel", "Hosea", "Joel", "Amos",
-        "Obadiah", "Jonah", "Micah", "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi", "Matthew",
-        "Mark", "Luke", "John", "Acts", "Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians", "Philippians",
-        "Colossians", "1 Thessalonians", "2 Thessalonians", "1 Timothy", "2 Timothy", "Titus", "Philemon", "Hebrews", "James", "1 Peter",
-        "2 Peter", "1 John", "2 John", "3 John", "Jude", "Revelation"
-    ];
     private Control BuildBibleRibbon()
     {
         var ribbon = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, AutoScroll = true, BackColor = Color.White };
-        var library = RibbonGroup("Bible library", 355);
-        var newBible = Button("+ New Bible", _brand, Color.White, 94, 34);
+        EnableHorizontalWheel(ribbon);
+        var library = RibbonGroup("Bible library", 380);
+        var newBible = Button("+ New Bible", _brand, Color.White, 100, 34);
         newBible.Click += (_, _) => NewBible();
-        var import = Button("Import JSON", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 102, 34);
+        Tip(newBible, "Create a new Bible translation to fill with verses");
+        var import = Button("Import file", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 96, 34);
         import.Click += (_, _) => ImportBible();
-        var delete = Button("Delete Bible", Color.White, Color.FromArgb(177, 59, 54), 98, 34);
+        Tip(import, "Import a Bible translation from a JSON or SQLite file");
+        var delete = Button("Delete Bible", Color.White, Color.FromArgb(177, 59, 54), 100, 34);
         delete.Click += (_, _) => DeleteCurrentBible();
-        Add(library, newBible, import, delete, Hint("Import a Bible translation stored as JSON."));
+        Tip(delete, "Delete the current translation and all of its verses");
+        Add(library, newBible, import, delete, Hint("Import a Bible translation stored as JSON, or the Telugu SQLite database."));
 
-        var present = RibbonGroup("Present", 280);
-        var show = Button("Show selected verse", Color.FromArgb(35, 157, 87), Color.White, 145, 34);
+        var present = RibbonGroup("Present", 300);
+        var show = Button("Preview verse", Color.FromArgb(35, 157, 87), Color.White, 112, 34);
         show.Click += (_, _) => ShowSelectedBibleVerse();
-        var projector = Button("Open projector", Color.White, Color.FromArgb(31, 48, 68), 110, 34);
+        Tip(show, "Show the selected verse in the preview pane");
+        var projector = Button("Open projector", Color.White, Color.FromArgb(31, 48, 68), 116, 34);
         projector.Click += (_, _) => ToggleProjector();
+        Tip(projector, "Open or close the borderless projector window (F5)");
         Add(present, show, projector, Hint("The selected verse is shown in the preview."));
         ribbon.Controls.AddRange([library, present]);
         return ribbon;
@@ -63,12 +59,15 @@ public partial class Form1
         content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         var actions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 34, WrapContents = false, Margin = new Padding(0) };
-        var remove = Button("Remove", Color.White, Color.FromArgb(31, 48, 68), 70, 32);
+        var remove = Button("Remove", Color.White, Color.FromArgb(177, 59, 54), 70, 32);
         remove.Click += (_, _) => RemoveAgendaItem();
-        var up = Button("Up", Color.White, Color.FromArgb(31, 48, 68), 40, 32);
+        Tip(remove, "Remove the selected Bible passage from the service order");
+        var up = Button("▲", Color.White, Color.FromArgb(31, 48, 68), 40, 32);
         up.Click += (_, _) => MoveAgendaItem(-1);
-        var down = Button("Down", Color.White, Color.FromArgb(31, 48, 68), 52, 32);
+        Tip(up, "Move the selected passage earlier");
+        var down = Button("▼", Color.White, Color.FromArgb(31, 48, 68), 52, 32);
         down.Click += (_, _) => MoveAgendaItem(1);
+        Tip(down, "Move the selected passage later");
         actions.Controls.AddRange([remove, up, down]);
         _bibleAgendaList = new ListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 10F) };
         _bibleAgendaList.DoubleClick += (_, _) => { if (_bibleAgendaList.SelectedItem is AgendaItem) LoadAgendaItem(); };
@@ -89,15 +88,17 @@ public partial class Form1
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         content.Controls.Add(SmallLabel("TRANSLATION"), 0, 0);
-        _bibleTranslationPicker = new ComboBox { Dock = DockStyle.Top, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 0, 0, 8) };
+        _bibleTranslationPicker = new ComboBox { Dock = DockStyle.Top, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 0, 0, 8), DropDownWidth = 220 };
         _bibleTranslationPicker.SelectedIndexChanged += (_, _) => { if (!_updating && _bibleTranslationPicker.SelectedItem is BibleTranslation bible) LoadBible(bible); };
         content.Controls.Add(_bibleTranslationPicker, 0, 1);
 
         var reference = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 34, WrapContents = false, Margin = new Padding(0, 0, 0, 8) };
         _bibleReferenceBox = new TextBox { Width = 130, PlaceholderText = "e.g. John 3:16", Margin = new Padding(0, 4, 6, 0) };
         _bibleReferenceBox.KeyDown += (_, e) => { if (e.KeyCode == Keys.Enter) GoToReference(); };
+        Tip(_bibleReferenceBox, "Type a Bible reference and press Enter");
         var go = Button("Go", _brand, Color.White, 48, 30);
         go.Click += (_, _) => GoToReference();
+        Tip(go, "Jump to a Bible reference such as John 3:16 or Psalm 23:1-6");
         reference.Controls.AddRange([_bibleReferenceBox, go]);
         content.Controls.Add(reference, 0, 2);
 
@@ -121,7 +122,7 @@ public partial class Form1
 
     private Control BuildBibleVersesPanel()
     {
-        var outer = Section("Verses", "Select a verse to preview or add to the agenda");
+        var outer = Section("Verses", "Preview, edit, or add selected verses to the service");
         var content = (TableLayoutPanel)outer.Tag!;
         content.RowCount = 3;
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -130,82 +131,28 @@ public partial class Form1
         _bibleReferenceLabel = new Label { Text = "Choose a Bible book and chapter", AutoSize = true, ForeColor = Color.FromArgb(52, 94, 130), Font = new Font("Segoe UI", 10F, FontStyle.Bold), Margin = new Padding(0, 0, 0, 7) };
         _bibleVerseList = new VerseListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 10F), Margin = new Padding(0, 0, 0, 7) };
         _bibleVerseList.SelectedIndexChanged += (_, _) => { if (!_updating && _bibleVerseList.SelectedItems.Count > 0) PreviewSelectedBibleVerses(); };
-        var actions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 36, WrapContents = false };
-        var add = Button("+ Add verse", _brand, Color.White, 94, 32);
+
+        var actions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 74, WrapContents = true, Margin = new Padding(0), Padding = new Padding(0) };
+        var addVerse = Button("+ New verse", _brand, Color.White, 100, 34);
+        addVerse.Click += (_, _) => CreateBibleVerse();
+        Tip(addVerse, "Create a verse in the current translation");
+        var editVerse = Button("Edit", Color.White, Color.FromArgb(31, 48, 68), 72, 34);
+        editVerse.Click += (_, _) => EditBibleVerse();
+        Tip(editVerse, "Edit the selected verse");
+        var removeVerse = Button("Delete", Color.White, Color.FromArgb(177, 59, 54), 78, 34);
+        removeVerse.Click += (_, _) => DeleteBibleVerse();
+        Tip(removeVerse, "Delete the selected verse(s)");
+        var add = Button("+ Add to agenda", Color.White, Color.FromArgb(31, 48, 68), 112, 34);
         add.Click += (_, _) => AddSelectedBibleVerseToAgenda();
-        var show = Button("Show live", Color.FromArgb(35, 157, 87), Color.White, 85, 32);
-        show.Click += (_, _) => ShowSelectedBibleVerse();
-        actions.Controls.AddRange([add, show]);
+        Tip(add, "Add the selected passage to the service order");
+        var show = Button("● Show live", Color.FromArgb(35, 157, 87), Color.White, 100, 34);
+        show.Click += (_, _) => ShowLiveVerse();
+        Tip(show, "Project the selected verses on the live display (F5)");
+        actions.Controls.AddRange([addVerse, editVerse, removeVerse, add, show]);
+
         content.Controls.Add(_bibleReferenceLabel, 0, 0);
         content.Controls.Add(_bibleVerseList, 0, 1);
         content.Controls.Add(actions, 0, 2);
-        return outer;
-    }
-
-    private Control BuildBibleLibraryPanel()
-    {
-        var outer = Section("Bible library", "Your Bible translations");
-        var content = (TableLayoutPanel)outer.Tag!;
-        content.RowCount = 2;
-        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        var actions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 36, WrapContents = false, Margin = new Padding(0, 0, 0, 8) };
-        var add = Button("+ New", _brand, Color.White, 65, 32);
-        add.Click += (_, _) => NewBible();
-        var import = Button("Import", Color.White, Color.FromArgb(31, 48, 68), 70, 32);
-        import.Click += (_, _) => ImportBible();
-        var delete = Button("Delete", Color.White, Color.FromArgb(177, 59, 54), 65, 32);
-        delete.Click += (_, _) => DeleteCurrentBible();
-        actions.Controls.AddRange([add, import, delete]);
-        _bibleList = new ListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 10F) };
-        _bibleList.SelectedIndexChanged += (_, _) => { if (!_updating && _bibleList.SelectedItem is BibleTranslation bible) LoadBible(bible); };
-        content.Controls.Add(actions, 0, 0);
-        content.Controls.Add(_bibleList, 0, 1);
-        RefreshBibleList();
-        return outer;
-    }
-
-    private Control BuildBibleEditorPanel()
-    {
-        var outer = Section("Bible editor", "Add, edit, and present individual verses");
-        var content = (TableLayoutPanel)outer.Tag!;
-        content.RowCount = 7;
-        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        content.RowStyles.Add(new RowStyle(SizeType.Percent, 52));
-        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        content.RowStyles.Add(new RowStyle(SizeType.Percent, 48));
-
-        content.Controls.Add(SmallLabel("BIBLE NAME"), 0, 0);
-        _bibleNameBox = new TextBox { Dock = DockStyle.Top, Font = new Font("Segoe UI", 11F, FontStyle.Bold), PlaceholderText = "e.g. My Church Bible", Margin = new Padding(0, 0, 0, 8) };
-        content.Controls.Add(_bibleNameBox, 0, 1);
-        var reference = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 55, WrapContents = false, Margin = new Padding(0, 0, 0, 7) };
-        _bibleBookBox = new TextBox { Width = 160, PlaceholderText = "Book", Margin = new Padding(0, 19, 8, 0) };
-        _bibleChapter = new NumericUpDown { Minimum = 1, Maximum = 200, Value = 1, Width = 62 };
-        _bibleVerseNumber = new NumericUpDown { Minimum = 1, Maximum = 200, Value = 1, Width = 62 };
-        reference.Controls.Add(_bibleBookBox);
-        reference.Controls.Add(Field("Chapter", _bibleChapter));
-        reference.Controls.Add(Field("Verse", _bibleVerseNumber));
-        content.Controls.Add(reference, 0, 2);
-        _bibleVerseText = new RichTextBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, Font = new Font("Segoe UI", 12F), Margin = new Padding(0, 0, 0, 8) };
-        content.Controls.Add(_bibleVerseText, 0, 3);
-        var actions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 36, WrapContents = false, Margin = new Padding(0, 0, 0, 7) };
-        var saveBible = Button("Save Bible", Color.White, Color.FromArgb(31, 48, 68), 88, 32);
-        saveBible.Click += (_, _) => SaveBible();
-        var save = Button("Save verse", _brand, Color.White, 90, 32);
-        save.Click += (_, _) => SaveBibleVerse();
-        var remove = Button("Delete verse", Color.White, Color.FromArgb(177, 59, 54), 95, 32);
-        remove.Click += (_, _) => DeleteCurrentBibleVerse();
-        var show = Button("Show verse", Color.FromArgb(35, 157, 87), Color.White, 90, 32);
-        show.Click += (_, _) => ShowSelectedBibleVerse();
-        actions.Controls.AddRange([saveBible, save, remove, show]);
-        content.Controls.Add(actions, 0, 4);
-        content.Controls.Add(SmallLabel("VERSES"), 0, 5);
-        _bibleVerseList = new ListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 9.5F) };
-        _bibleVerseList.SelectedIndexChanged += (_, _) => { if (!_updating && _bibleVerseList.SelectedItem is BibleVerse verse) LoadBibleVerse(verse); };
-        content.Controls.Add(_bibleVerseList, 0, 6);
         return outer;
     }
 
@@ -218,8 +165,9 @@ public partial class Form1
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _biblePreview = new SlideCanvas { Dock = DockStyle.Fill, Theme = _theme, Margin = new Padding(0, 0, 0, 9), BackColor = Color.FromArgb(22, 28, 37) };
-        var show = Button("Show selected verse", Color.FromArgb(35, 157, 87), Color.White, 145, 34);
+        var show = Button("Show selected verse", Color.FromArgb(35, 157, 87), Color.White, 150, 34);
         show.Click += (_, _) => ShowSelectedBibleVerse();
+        Tip(show, "Preview the selected verse in this pane");
         var tip = new Label { Text = "Select a verse from the list to preview it.", ForeColor = Color.FromArgb(112, 125, 138), AutoSize = true, Margin = new Padding(0, 7, 0, 0) };
         content.Controls.Add(_biblePreview, 0, 0);
         content.Controls.Add(show, 0, 1);
@@ -227,35 +175,22 @@ public partial class Form1
         return outer;
     }
 
+    private BibleTranslation? CurrentBible() => _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
+
     private void NewBible()
     {
-        _currentBibleId = null;
+        var name = DialogHelpers.PromptText(this, "New Bible translation", "Translation name:");
+        if (string.IsNullOrWhiteSpace(name)) return;
+        var bible = new BibleTranslation { Name = name };
+        _bibles.Add(bible);
+        _currentBibleId = bible.Id;
         _currentBibleVerseId = null;
-        if (_bibleNameBox is null) return;
-        _updating = true;
-        _bibleNameBox.Text = "";
-        _bibleBookBox.Text = "Genesis";
-        _bibleChapter.Value = 1;
-        _bibleVerseNumber.Value = 1;
-        _bibleVerseText.Text = "";
-        _bibleVerseList.Items.Clear();
-        if (_bibleList is not null) _bibleList.ClearSelected();
-        _updating = false;
-        _bibleNameBox.Focus();
-    }
-
-    private void RefreshBibleList()
-    {
-        _updating = true;
-        if (_bibleList is not null)
-        {
-            _bibleList.BeginUpdate();
-            _bibleList.Items.Clear();
-            foreach (var bible in _bibles.OrderBy(item => item.Name)) _bibleList.Items.Add(bible);
-            _bibleList.EndUpdate();
-        }
-        _updating = false;
+        Persist();
         RefreshBibleTranslationPicker();
+        LoadBible(bible);
+        if (_bibleReferenceLabel is not null)
+            _bibleReferenceLabel.Text = "New translation — use + New verse to add the first verse";
+        _slideStatus.Text = "Created Bible translation: " + bible.Name;
     }
 
     private void LoadBible(BibleTranslation bible)
@@ -263,19 +198,20 @@ public partial class Form1
         _currentBibleId = bible.Id;
         _currentBibleVerseId = null;
         _updating = true;
-        if (_bibleNameBox is not null) _bibleNameBox.Text = bible.Name;
-        if (_bibleBookBox is not null) _bibleBookBox.Text = "Genesis";
-        if (_bibleChapter is not null) _bibleChapter.Value = 1;
-        if (_bibleVerseNumber is not null) _bibleVerseNumber.Value = 1;
-        if (_bibleVerseText is not null) _bibleVerseText.Text = "";
+        if (_bibleTranslationPicker is not null && _bibleTranslationPicker.SelectedItem != bible)
+            _bibleTranslationPicker.SelectedItem = bible;
         _updating = false;
         RefreshBibleBooks();
+        if (_bibleReferenceLabel is not null)
+            _bibleReferenceLabel.Text = bible.Verses.Count == 0
+                ? "This translation has no verses yet — use + New verse"
+                : "Select a book and chapter";
     }
 
     private void RefreshBibleVerses()
     {
         if (_bibleVerseList is null) return;
-        var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
+        var bible = CurrentBible();
         var book = _bibleBookList?.SelectedItem as string;
         var chapter = _bibleChapterList?.SelectedItem is int selectedChapter ? selectedChapter : (int?)null;
         _updating = true;
@@ -311,15 +247,15 @@ public partial class Form1
     private void RefreshBibleBooks()
     {
         if (_bibleBookList is null) return;
-        var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
+        var bible = CurrentBible();
         _updating = true;
         _bibleBookList.BeginUpdate();
         _bibleBookList.Items.Clear();
         if (bible is not null)
         {
             var available = bible.Verses.Select(item => item.Book).Distinct(StringComparer.OrdinalIgnoreCase).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            foreach (var book in CanonicalBookOrder.Where(available.Contains)) _bibleBookList.Items.Add(book);
-            foreach (var book in available.Where(book => !CanonicalBookOrder.Contains(book, StringComparer.OrdinalIgnoreCase)).OrderBy(book => book)) _bibleBookList.Items.Add(book);
+            foreach (var book in BibleBooks.Canonical.Where(available.Contains)) _bibleBookList.Items.Add(book);
+            foreach (var book in available.Where(book => !BibleBooks.Canonical.Contains(book, StringComparer.OrdinalIgnoreCase)).OrderBy(book => book)) _bibleBookList.Items.Add(book);
             if (_bibleBookList.Items.Count > 0) _bibleBookList.SelectedIndex = 0;
         }
         _bibleBookList.EndUpdate();
@@ -332,7 +268,7 @@ public partial class Form1
         if (_bibleReferenceBox is null) return;
         var input = _bibleReferenceBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(input)) return;
-        var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
+        var bible = CurrentBible();
         if (bible is null)
         {
             MessageBox.Show(this, "Choose or import a Bible translation first.", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -382,7 +318,7 @@ public partial class Form1
     private void RefreshBibleChapters()
     {
         if (_bibleChapterList is null) return;
-        var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
+        var bible = CurrentBible();
         var book = _bibleBookList?.SelectedItem as string;
         _updating = true;
         _bibleChapterList.BeginUpdate();
@@ -410,7 +346,8 @@ public partial class Form1
 
     private void AddSelectedBibleVerseToAgenda()
     {
-        if (_currentBibleId is not Guid id || _bibles.FirstOrDefault(item => item.Id == id) is not BibleTranslation bible) return;
+        var bible = CurrentBible();
+        if (bible is null) return;
         var verses = _bibleVerseList.SelectedItems.Cast<BibleVerse>().OrderBy(item => item.Book).ThenBy(item => item.Chapter).ThenBy(item => item.Verse).ToList();
         if (verses.Count == 0) return;
         var first = verses[0];
@@ -429,101 +366,111 @@ public partial class Form1
         RefreshAgenda();
         RefreshBibleAgenda();
         if (_bibleAgendaList is not null) _bibleAgendaList.SelectedIndex = _agenda.Count - 1;
+        _slideStatus.Text = "Added to service agenda: " + title;
     }
 
-    private void SaveBibleVerse()
+    private void CreateBibleVerse()
     {
-        var name = _bibleNameBox.Text.Trim();
-        var book = _bibleBookBox.Text.Trim();
-        var text = _bibleVerseText.Text.Trim();
-        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(book) || string.IsNullOrWhiteSpace(text))
-        {
-            MessageBox.Show(this, "Enter a Bible name, a book, and verse text before saving.", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-        var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
+        var bible = CurrentBible();
         if (bible is null)
         {
-            bible = new BibleTranslation();
-            _bibles.Add(bible);
-            _currentBibleId = bible.Id;
+            MessageBox.Show(this, "Create or import a Bible translation first, then add verses to it.", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
         }
-        bible.Name = name;
-        var verse = _currentBibleVerseId is Guid verseId ? bible.Verses.FirstOrDefault(item => item.Id == verseId) : null;
-        if (verse is null)
+        using var dialog = new BibleVerseEditorForm(bible.Name);
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        var verse = new BibleVerse
         {
-            verse = new BibleVerse();
-            bible.Verses.Add(verse);
-            _currentBibleVerseId = verse.Id;
-        }
-        verse.Book = book;
-        verse.Chapter = (int)_bibleChapter.Value;
-        verse.Verse = (int)_bibleVerseNumber.Value;
-        verse.Text = text;
+            Book = dialog.Book,
+            Chapter = dialog.Chapter,
+            Verse = dialog.VerseNumber,
+            Text = dialog.VerseText
+        };
+        bible.Verses.Add(verse);
         Persist();
-        RefreshBibleList();
         RefreshBibleVerses();
-        _bibleVerseList.SelectedItem = verse;
-        ShowBibleVerse(bible, verse);
+        SelectVerseInList(verse);
+        ShowBibleVerses(bible, [verse]);
+        _slideStatus.Text = "Saved verse " + verse.Reference;
     }
 
-    private void SaveBible()
+    private void EditBibleVerse()
     {
-        var name = _bibleNameBox.Text.Trim();
-        if (string.IsNullOrWhiteSpace(name))
+        var bible = CurrentBible();
+        if (bible is null || _bibleVerseList is null) return;
+        if (_bibleVerseList.SelectedItems.Count != 1)
         {
-            MessageBox.Show(this, "Enter a Bible name before saving.", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            _bibleNameBox.Focus();
+            MessageBox.Show(this, "Select exactly one verse to edit.", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
-        var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
-        if (bible is null)
-        {
-            bible = new BibleTranslation();
-            _bibles.Add(bible);
-            _currentBibleId = bible.Id;
-        }
-        bible.Name = name;
+        var verse = (BibleVerse)_bibleVerseList.SelectedItems[0]!;
+        using var dialog = new BibleVerseEditorForm(bible.Name, verse);
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        verse.Book = dialog.Book;
+        verse.Chapter = dialog.Chapter;
+        verse.Verse = dialog.VerseNumber;
+        verse.Text = dialog.VerseText;
         Persist();
-        RefreshBibleList();
-        if (_bibleList is not null) _bibleList.SelectedItem = bible;
-    }
-
-    private void LoadBibleVerse(BibleVerse verse)
-    {
-        var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
-        if (bible is null) return;
-        _currentBibleVerseId = verse.Id;
-        _updating = true;
-        if (_bibleBookBox is not null) _bibleBookBox.Text = verse.Book;
-        if (_bibleChapter is not null) _bibleChapter.Value = verse.Chapter;
-        if (_bibleVerseNumber is not null) _bibleVerseNumber.Value = verse.Verse;
-        if (_bibleVerseText is not null) _bibleVerseText.Text = verse.Text;
-        _updating = false;
+        RefreshBibleVerses();
+        SelectVerseInList(verse);
         ShowBibleVerse(bible, verse);
+        _slideStatus.Text = "Updated verse " + verse.Reference;
     }
 
-    private void DeleteCurrentBibleVerse()
+    private void DeleteBibleVerse()
     {
-        var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
-        var verse = _currentBibleVerseId is Guid verseId ? bible?.Verses.FirstOrDefault(item => item.Id == verseId) : null;
-        if (bible is null || verse is null) return;
-        bible.Verses.Remove(verse);
+        var bible = CurrentBible();
+        if (bible is null || _bibleVerseList is null) return;
+        if (_bibleVerseList.SelectedItems.Count == 0)
+        {
+            MessageBox.Show(this, "Select a verse to delete.", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        var verses = _bibleVerseList.SelectedItems.Cast<BibleVerse>().ToList();
+        var message = verses.Count == 1
+            ? $"Delete verse {verses[0].Reference}?\n\nThis cannot be undone."
+            : $"Delete the {verses.Count} selected verses?\n\nThis cannot be undone.";
+        if (!DialogHelpers.Confirm(this, "Delete verse", message, destructive: true)) return;
+        foreach (var verse in verses) bible.Verses.Remove(verse);
         _currentBibleVerseId = null;
-        _bibleVerseText.Text = "";
         Persist();
         RefreshBibleVerses();
+        _slideStatus.Text = verses.Count == 1 ? "Deleted verse" : $"Deleted {verses.Count} verses";
+    }
+
+    private void SelectVerseInList(BibleVerse verse)
+    {
+        if (_bibleVerseList is null) return;
+        var index = _bibleVerseList.Items.IndexOf(verse);
+        if (index >= 0)
+        {
+            _updating = true;
+            _bibleVerseList.SelectedIndex = index;
+            _updating = false;
+        }
     }
 
     private void DeleteCurrentBible()
     {
-        var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
-        if (bible is null) return;
-        if (MessageBox.Show(this, $"Delete '{bible.Name}' and all of its verses?", "MPH Songs", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+        var bible = CurrentBible();
+        if (bible is null)
+        {
+            MessageBox.Show(this, "Choose a Bible translation to delete first.", "MPH Songs", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        if (!DialogHelpers.Confirm(this, "Delete Bible translation",
+                $"Delete '{bible.Name}' and all of its verses?\n\nThis cannot be undone.", destructive: true)) return;
         _bibles.Remove(bible);
+        _currentBibleId = null;
+        _currentBibleVerseId = null;
         Persist();
-        RefreshBibleList();
-        NewBible();
+        RefreshBibleTranslationPicker();
+        if (_bibleTranslationPicker.SelectedItem is not BibleTranslation)
+        {
+            RefreshBibleBooks();
+            if (_bibleReferenceLabel is not null) _bibleReferenceLabel.Text = "Choose or create a Bible translation";
+        }
+        _slideStatus.Text = "Deleted Bible translation: " + bible.Name;
     }
 
     private void ImportBible()
@@ -536,11 +483,12 @@ public partial class Form1
                 ? _store.ImportSqliteBible(dialog.FileName)
                 : _store.ImportBible(dialog.FileName);
             _bibles.Add(bible);
+            _currentBibleId = bible.Id;
+            _currentBibleVerseId = null;
             Persist();
-            RefreshBibleList();
             RefreshBibleTranslationPicker();
-            if (_bibleList is not null) _bibleList.SelectedItem = bible;
             LoadBible(bible);
+            _slideStatus.Text = "Imported Bible translation: " + bible.Name;
         }
         catch (Exception exception)
         {
@@ -550,13 +498,19 @@ public partial class Form1
 
     private void ShowSelectedBibleVerse()
     {
-        var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
+        var bible = CurrentBible();
         if (bible is not null) PreviewSelectedBibleVerses();
+    }
+
+    private void ShowLiveVerse()
+    {
+        ShowSelectedBibleVerse();
+        ToggleProjector();
     }
 
     private void PreviewSelectedBibleVerses()
     {
-        var bible = _currentBibleId is Guid id ? _bibles.FirstOrDefault(item => item.Id == id) : null;
+        var bible = CurrentBible();
         if (bible is null || _bibleVerseList is null) return;
         var verses = _bibleVerseList.SelectedItems.Cast<BibleVerse>().OrderBy(item => item.Book).ThenBy(item => item.Chapter).ThenBy(item => item.Verse).ToList();
         if (verses.Count == 0) return;

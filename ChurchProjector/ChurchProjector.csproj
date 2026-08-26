@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -9,6 +9,11 @@
     <AssemblyName>MPHSongs</AssemblyName>
     <Product>MPH Songs</Product>
     <Title>MPH Songs</Title>
+    <Description>Song and Bible projection for church services.</Description>
+    <Company>MPH</Company>
+    <Version>1.1.0</Version>
+    <FileVersion>1.1.0</FileVersion>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
