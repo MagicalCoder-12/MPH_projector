@@ -36,7 +36,7 @@ internal sealed class GalleryDropdownForm : Form
         DoubleBuffered = true;
 
         var topBar = new Panel { Dock = DockStyle.Top, Height = 38, BackColor = Color.White, Padding = new Padding(10, 6, 10, 6) };
-        topBar.Paint += (s, e) => { using var pen = new Pen(Color.FromArgb(220, 226, 232)); e.Graphics.DrawLine(pen, 0, topBar.Height - 1, topBar.Width, topBar.Height - 1); };
+        topBar.Paint += (s, e) => { using var pen = new Pen(Color.FromArgb(217, 222, 231)); e.Graphics.DrawLine(pen, 0, topBar.Height - 1, topBar.Width, topBar.Height - 1); };
         var searchIcon = new Label { Text = "🔍", AutoSize = true, Location = new Point(6, 8), ForeColor = Color.FromArgb(90, 100, 114) };
         var searchLabel = new Label { Text = "Search", AutoSize = true, Location = new Point(24, 9), ForeColor = Color.FromArgb(70, 84, 100), Font = new Font("Segoe UI", 8F, FontStyle.Bold) };
         _searchBox = new TextBox { Location = new Point(80, 7), Height = 22, BorderStyle = BorderStyle.FixedSingle, PlaceholderText = kind == "Video" ? "Keywords to search in the videos" : "Keywords to search in the images", Width = 420, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
@@ -48,7 +48,7 @@ internal sealed class GalleryDropdownForm : Form
         Controls.Add(topBar);
 
         var bottomBar = new Panel { Dock = DockStyle.Bottom, Height = 44, BackColor = Color.FromArgb(245, 247, 249), Padding = new Padding(10, 8, 10, 8) };
-        bottomBar.Paint += (s, e) => { using var pen = new Pen(Color.FromArgb(220, 226, 232)); e.Graphics.DrawLine(pen, 0, 0, bottomBar.Width, 0); };
+        bottomBar.Paint += (s, e) => { using var pen = new Pen(Color.FromArgb(217, 222, 231)); e.Graphics.DrawLine(pen, 0, 0, bottomBar.Width, 0); };
         var importBtn = new Button
         {
             Text = kind == "Video" ? "  ＋  Import videos" : "  ＋  Import images",
@@ -214,8 +214,8 @@ internal sealed class GalleryDropdownForm : Form
         panel.Paint += (s, e) =>
         {
             var sel = asset is null ? _selectedId is null : asset.Id == _selectedId;
-            if (sel) { using var pen = new Pen(Color.FromArgb(22, 113, 180), 1.6f); e.Graphics.DrawRectangle(pen, 0, 0, panel.Width - 1, panel.Height - 1); }
-            else { using var pen = new Pen(Color.FromArgb(220, 226, 232)); e.Graphics.DrawRectangle(pen, 0, 0, panel.Width - 1, panel.Height - 1); }
+            if (sel) { using var pen = new Pen(Color.FromArgb(65, 105, 225), 1.6f); e.Graphics.DrawRectangle(pen, 0, 0, panel.Width - 1, panel.Height - 1); }
+            else { using var pen = new Pen(Color.FromArgb(217, 222, 231)); e.Graphics.DrawRectangle(pen, 0, 0, panel.Width - 1, panel.Height - 1); }
         };
         var pic = new PictureBox
         {

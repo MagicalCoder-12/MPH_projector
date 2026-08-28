@@ -14,11 +14,11 @@ public partial class Form1
         var backup = RibbonGroup("Backup", 250);
         var export = Button("Export", _brand, Color.White, 90, 34);
         export.Click += (_, _) => ExportLibrary();
-        var import = Button("Import", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 90, 34);
+        var import = Button("Import", Color.White, Color.FromArgb(52, 64, 84), 90, 34);
         import.Click += (_, _) => ImportLibrary();
         Add(backup, export, import, Hint("Export a .mphbundle to move your whole library to another computer."));
         var sync = RibbonGroup("Cloud sync", 380);
-        var syncRefresh = Button("Refresh now", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 95, 34);
+        var syncRefresh = Button("Refresh now", Color.White, Color.FromArgb(52, 64, 84), 95, 34);
         syncRefresh.Click += async (_, _) => await SyncFromApiAsync();
         Add(sync, syncRefresh, Hint("Songs sync automatically with mph-songs.vercel.app every 60 seconds. Click Refresh now for an immediate sync."));
         ribbon.Controls.AddRange([start, keyboard, storage, backup, sync]);
@@ -36,8 +36,8 @@ public partial class Form1
         {
             Text = "Use this tab during practice or before a service. All controls are safe to explore until you open the projector.",
             AutoSize = true,
-            ForeColor = Color.FromArgb(52, 94, 130),
-            BackColor = Color.FromArgb(232, 242, 251),
+            ForeColor = Color.FromArgb(37, 66, 143),
+            BackColor = Color.FromArgb(232, 238, 255),
             Padding = new Padding(10, 8, 10, 8),
             Margin = new Padding(0, 0, 0, 10)
         };
@@ -47,7 +47,7 @@ public partial class Form1
             ReadOnly = true,
             BorderStyle = BorderStyle.FixedSingle,
             BackColor = Color.White,
-            ForeColor = Color.FromArgb(35, 52, 72),
+            ForeColor = Color.FromArgb(52, 64, 84),
             Font = new Font("Segoe UI", 10.5F),
             Text = HelpText,
             DetectUrls = false,

@@ -51,12 +51,12 @@ public partial class Form1
 
     private Control BuildBibleWorkspace()
     {
-        var outer = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10, 10, 10, 12), BackColor = Color.FromArgb(241, 244, 247) };
-        var navSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
+        var outer = new Panel { Dock = DockStyle.Fill, Padding = new Padding(6, 6, 6, 8), BackColor = Color.FromArgb(245, 247, 250) };
+        var navSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(245, 247, 250), SplitterWidth = 4 };
         navSplit.Panel1.Controls.Add(BuildBibleNavigatorPanel());
-        var right = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
+        var right = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, BackColor = Color.FromArgb(245, 247, 250), SplitterWidth = 4 };
         right.Panel1.Controls.Add(BuildBibleVersesPanel());
-        var rightVertical = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, BackColor = Color.FromArgb(241, 244, 247), SplitterWidth = 6 };
+        var rightVertical = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, BackColor = Color.FromArgb(245, 247, 250), SplitterWidth = 4 };
         rightVertical.Panel1.Controls.Add(BuildBiblePreviewPanel());
         rightVertical.Panel2.Controls.Add(BuildBibleAgendaPanel());
         right.Panel2.Controls.Add(rightVertical);
@@ -78,11 +78,11 @@ public partial class Form1
         content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         var actions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 34, WrapContents = false, Margin = new Padding(0) };
-        var remove = Button("Remove", Color.White, Color.FromArgb(31, 48, 68), 70, 32);
+        var remove = Button("Remove", Color.White, Color.FromArgb(52, 64, 84), 70, 32);
         remove.Click += (_, _) => RemoveAgendaItem();
-        var up = Button("Up", Color.White, Color.FromArgb(31, 48, 68), 40, 32);
+        var up = Button("Up", Color.White, Color.FromArgb(52, 64, 84), 40, 32);
         up.Click += (_, _) => MoveAgendaItem(-1);
-        var down = Button("Down", Color.White, Color.FromArgb(31, 48, 68), 52, 32);
+        var down = Button("Down", Color.White, Color.FromArgb(52, 64, 84), 52, 32);
         down.Click += (_, _) => MoveAgendaItem(1);
         actions.Controls.AddRange([remove, up, down]);
         _bibleAgendaList = new ListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 10F) };
@@ -167,7 +167,7 @@ public partial class Form1
         var actions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 36, WrapContents = false, Margin = new Padding(0, 0, 0, 8) };
         var add = Button("+ New", _brand, Color.White, 65, 32);
         add.Click += (_, _) => NewBible();
-        var import = Button("Import", Color.White, Color.FromArgb(31, 48, 68), 70, 32);
+        var import = Button("Import", Color.White, Color.FromArgb(52, 64, 84), 70, 32);
         import.Click += (_, _) => ImportBible();
         var delete = Button("Delete", Color.White, Color.FromArgb(177, 59, 54), 65, 32);
         delete.Click += (_, _) => DeleteCurrentBible();
@@ -207,7 +207,7 @@ public partial class Form1
         _bibleVerseText = new RichTextBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, Font = new Font("Segoe UI", 12F), Margin = new Padding(0, 0, 0, 8) };
         content.Controls.Add(_bibleVerseText, 0, 3);
         var actions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 36, WrapContents = false, Margin = new Padding(0, 0, 0, 7) };
-        var saveBible = Button("Save Bible", Color.White, Color.FromArgb(31, 48, 68), 88, 32);
+        var saveBible = Button("Save Bible", Color.White, Color.FromArgb(52, 64, 84), 88, 32);
         saveBible.Click += (_, _) => SaveBible();
         var save = Button("Save verse", _brand, Color.White, 90, 32);
         save.Click += (_, _) => SaveBibleVerse();
@@ -235,7 +235,7 @@ public partial class Form1
         _biblePreview = new SlideCanvas { Dock = DockStyle.Fill, Theme = _theme, Margin = new Padding(0, 0, 0, 9), BackColor = Color.FromArgb(22, 28, 37) };
         var show = Button("Show selected verse", Color.FromArgb(35, 157, 87), Color.White, 145, 34);
         show.Click += (_, _) => ShowSelectedBibleVerse();
-        var tip = new Label { Text = "Select a verse from the list to preview it.", ForeColor = Color.FromArgb(112, 125, 138), AutoSize = true, Margin = new Padding(0, 7, 0, 0) };
+        var tip = new Label { Text = "Select a verse from the list to preview it.", ForeColor = Color.FromArgb(102, 112, 133), AutoSize = true, Margin = new Padding(0, 7, 0, 0) };
         content.Controls.Add(_biblePreview, 0, 0);
         content.Controls.Add(show, 0, 1);
         content.Controls.Add(tip, 0, 2);

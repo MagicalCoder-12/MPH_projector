@@ -30,14 +30,14 @@ internal enum RibbonGlyph
 internal sealed class RibbonIconButton : Button
 {
     public static readonly Color IdleBack = Color.White;
-    public static readonly Color IdleBorder = Color.FromArgb(198, 208, 218);
-    public static readonly Color HoverBack = Color.FromArgb(237, 243, 249);
-    public static readonly Color ActiveBack = Color.FromArgb(213, 231, 246);
-    public static readonly Color ActiveBorder = Color.FromArgb(125, 170, 212);
-    public static readonly Color IdleInk = Color.FromArgb(58, 71, 86);
-    public static readonly Color ActiveInk = Color.FromArgb(19, 81, 140);
-    public static readonly Color DisabledInk = Color.FromArgb(163, 172, 182);
-    public static readonly Color DisabledBorder = Color.FromArgb(224, 229, 235);
+    public static readonly Color IdleBorder = Color.FromArgb(217, 222, 231);
+    public static readonly Color HoverBack = Color.FromArgb(232, 238, 255);
+    public static readonly Color ActiveBack = Color.FromArgb(220, 230, 255);
+    public static readonly Color ActiveBorder = Color.FromArgb(65, 105, 225);
+    public static readonly Color IdleInk = Color.FromArgb(52, 64, 84);
+    public static readonly Color ActiveInk = Color.FromArgb(49, 84, 179);
+    public static readonly Color DisabledInk = Color.FromArgb(152, 162, 179);
+    public static readonly Color DisabledBorder = Color.FromArgb(231, 234, 240);
 
     private bool _hover;
 

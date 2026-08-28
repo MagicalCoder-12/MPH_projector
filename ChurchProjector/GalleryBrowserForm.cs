@@ -147,7 +147,7 @@ internal sealed class GalleryBrowserForm : Form
             Font = new Font("Segoe UI", 9F),
             TextAlign = ContentAlignment.MiddleLeft,
             Cursor = Cursors.Hand,
-            FlatAppearance = { BorderColor = Color.FromArgb(210, 218, 227), BorderSize = 1 },
+            FlatAppearance = { BorderColor = Color.FromArgb(217, 222, 231), BorderSize = 1 },
             UseVisualStyleBackColor = false,
             Enabled = enabled,
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
@@ -162,8 +162,8 @@ internal sealed class GalleryBrowserForm : Form
 
     private void UpdateLuminosityLabels()
     {
-        _luminosityMinus.ForeColor = _luminosity.Value <= -60 ? Color.FromArgb(22, 113, 180) : Color.FromArgb(110, 120, 132);
-        _luminosityPlus.ForeColor = _luminosity.Value >= 60 ? Color.FromArgb(22, 113, 180) : Color.FromArgb(110, 120, 132);
+        _luminosityMinus.ForeColor = _luminosity.Value <= -60 ? Color.FromArgb(65, 105, 225) : Color.FromArgb(110, 120, 132);
+        _luminosityPlus.ForeColor = _luminosity.Value >= 60 ? Color.FromArgb(65, 105, 225) : Color.FromArgb(110, 120, 132);
     }
 
     public void SetBrightness(int value)
@@ -241,7 +241,7 @@ internal sealed class GalleryBrowserForm : Form
             Width = 148,
             Height = 120,
             Margin = new Padding(6),
-            BackColor = isSelected ? Color.FromArgb(214, 230, 245) : Color.White,
+            BackColor = isSelected ? Color.FromArgb(232, 238, 255) : Color.White,
             Cursor = Cursors.Hand,
             Tag = asset
         };
@@ -249,7 +249,7 @@ internal sealed class GalleryBrowserForm : Form
         {
             if (isSelected)
             {
-                using var pen = new Pen(Color.FromArgb(22, 113, 180), 1.5f);
+                using var pen = new Pen(Color.FromArgb(65, 105, 225), 1.5f);
                 e.Graphics.DrawRectangle(pen, 0, 0, panel.Width - 1, panel.Height - 1);
             }
             else

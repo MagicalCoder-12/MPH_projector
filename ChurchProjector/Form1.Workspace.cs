@@ -4,15 +4,15 @@ public partial class Form1
 {
     private Control BuildWorkspace()
     {
-        var outer = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10, 10, 10, 12), BackColor = Color.FromArgb(241, 244, 247) };
+        var outer = new Panel { Dock = DockStyle.Fill, Padding = new Padding(6, 6, 6, 8), BackColor = Color.FromArgb(245, 247, 250) };
 
         // Left: library  | Right: editor (middle) | verses + preview (right)
         var mainSplit = new SplitContainer
         {
             Dock = DockStyle.Fill,
             Orientation = Orientation.Vertical,   
-            BackColor = Color.FromArgb(241, 244, 247),
-            SplitterWidth = 6
+            BackColor = Color.FromArgb(245, 247, 250),
+            SplitterWidth = 4
         };
 
         // Left panel: Song Library
@@ -34,15 +34,15 @@ public partial class Form1
         {
             PlaceholderText = "Search songs",
             Dock = DockStyle.Fill,
-            Margin = new Padding(0, 0, 0, 6)
+            Margin = new Padding(0, 0, 0, 5)
         };
 
         _librarySearch.TextChanged += (_, _) => FilterLibrary(_librarySearch.Text);
         libraryContent.Controls.Add(_librarySearch, 0, 0);
 
         // Sort filter - alphabetical default
-        var sortPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Margin = new Padding(0, 0, 0, 6), WrapContents = false };
-        sortPanel.Controls.Add(new Label { Text = "Sort:", AutoSize = true, ForeColor = Color.FromArgb(77, 93, 111), Font = new Font("Segoe UI", 8F, FontStyle.Bold), Margin = new Padding(0, 4, 6, 0) });
+        var sortPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Margin = new Padding(0, 0, 0, 5), WrapContents = false };
+        sortPanel.Controls.Add(new Label { Text = "Sort:", AutoSize = true, ForeColor = Color.FromArgb(107, 118, 131), Font = new Font("Segoe UI", 8F, FontStyle.Bold), Margin = new Padding(0, 4, 6, 0) });
         _librarySort = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150, Margin = new Padding(0, 0, 0, 0) };
         _librarySort.Items.AddRange(["Alphabetical", "Recent", "Oldest"]);
         _librarySort.SelectedIndex = 0;
@@ -90,8 +90,8 @@ public partial class Form1
         {
             Dock = DockStyle.Fill,
             Orientation = Orientation.Vertical,
-            BackColor = Color.FromArgb(241, 244, 247),
-            SplitterWidth = 6
+            BackColor = Color.FromArgb(245, 247, 250),
+            SplitterWidth = 4
         };
 
         // Middle column
@@ -102,8 +102,8 @@ public partial class Form1
         {
             Dock = DockStyle.Fill,
             Orientation = Orientation.Horizontal,
-            BackColor = Color.FromArgb(241, 244, 247),
-            SplitterWidth = 6
+            BackColor = Color.FromArgb(245, 247, 250),
+            SplitterWidth = 4
         };
 
         previewSplit.Panel1.Controls.Add(BuildSlidesPanel());
@@ -160,13 +160,13 @@ public partial class Form1
         var agendaActions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 34, WrapContents = false, Margin = new Padding(0) };
         var add = Button("Add song", _brand, Color.White, 72, 32);
         add.Click += (_, _) => AddCurrentSongToAgenda();
-        var remove = Button("Remove", Color.White, Color.FromArgb(31, 48, 68), 56, 32);
+        var remove = Button("Remove", Color.White, Color.FromArgb(52, 64, 84), 56, 32);
         remove.Click += (_, _) => RemoveAgendaItem();
-        var update = Button("Update", Color.White, Color.FromArgb(31, 48, 68), 55, 32);
+        var update = Button("Update", Color.White, Color.FromArgb(52, 64, 84), 55, 32);
         update.Click += (_, _) => UpdateAgendaItem();
-        var up = Button("Up", Color.White, Color.FromArgb(31, 48, 68), 28, 32);
+        var up = Button("Up", Color.White, Color.FromArgb(52, 64, 84), 28, 32);
         up.Click += (_, _) => MoveAgendaItem(-1);
-        var down = Button("Down", Color.White, Color.FromArgb(31, 48, 68), 36, 32);
+        var down = Button("Down", Color.White, Color.FromArgb(52, 64, 84), 36, 32);
         down.Click += (_, _) => MoveAgendaItem(1);
         agendaActions.Controls.AddRange([add, remove, update, up, down]);
         _agendaList = new ListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 10F), Margin = new Padding(0, 7, 0, 10) };
@@ -199,7 +199,7 @@ public partial class Form1
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         var songActions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 34, WrapContents = false, Margin = new Padding(0, 0, 0, 5) };
-        var newSong = Button("New song", Color.White, Color.FromArgb(31, 48, 68), 100, 32);
+        var newSong = Button("New song", Color.White, Color.FromArgb(52, 64, 84), 100, 32);
         newSong.Click += (_, _) => NewSong();
         var saveSong = Button("Save", _brand, Color.White, 62, 32);
         saveSong.Click += (_, _) => SaveCurrentSong();
@@ -228,12 +228,12 @@ public partial class Form1
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        _audiencePreview = new SlideCanvas { Dock = DockStyle.Fill, Theme = _theme, Margin = new Padding(0, 0, 0, 9), BackColor = Color.FromArgb(22, 28, 37) };
+        _audiencePreview = new SlideCanvas { Dock = DockStyle.Fill, Theme = _theme, Margin = new Padding(0, 0, 0, 6), BackColor = Color.FromArgb(22, 28, 37) };
         var previewLabel = SmallLabel("PREVIEW");
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 38, WrapContents = false, Margin = new Padding(0) };
-        var previous = Button("‹  Previous", Color.White, Color.FromArgb(31, 48, 68), 92, 33);
+        var previous = Button("‹  Previous", Color.White, Color.FromArgb(52, 64, 84), 92, 33);
         previous.Click += (_, _) => SelectSlide(_currentSlide - 1);
-        var live = Button("●  Go live", Color.FromArgb(35, 157, 87), Color.White, 86, 33);
+        var live = Button("●  Go live", _brand, Color.White, 86, 33);
         live.Click += (_, _) => ToggleProjector();
         var next = Button("Next  ›", _brand, Color.White, 78, 33);
         next.Click += (_, _) => SelectSlide(_currentSlide + 1);
@@ -248,11 +248,16 @@ public partial class Form1
 
     private Panel Section(string title, string subtitle)
     {
-        var outer = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(12), Margin = new Padding(0, 0, 10, 0) };
-        outer.Paint += (_, e) => ControlPaint.DrawBorder(e.Graphics, outer.ClientRectangle, _panelBorder, ButtonBorderStyle.Solid);
-        var header = new Panel { Dock = DockStyle.Top, Height = 47, BackColor = Color.White };
-        header.Controls.Add(new Label { Text = title, Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = Color.FromArgb(31, 48, 68), AutoSize = true, Location = new Point(0, 0) });
-        header.Controls.Add(new Label { Text = subtitle, ForeColor = Color.FromArgb(112, 125, 138), AutoSize = true, Location = new Point(0, 25) });
+        var outer = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(10, 8, 10, 10), Margin = new Padding(0, 0, 6, 0) };
+        outer.Paint += (_, e) =>
+        {
+            using var pen = new Pen(_panelBorder, 1);
+            e.Graphics.DrawRectangle(pen, 0, 0, outer.ClientSize.Width - 1, outer.ClientSize.Height - 1);
+        };
+        var header = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Color.White };
+        header.Controls.Add(new Label { Text = title, Font = new Font("Segoe UI", 11.5F, FontStyle.Bold), ForeColor = Color.FromArgb(31, 41, 55), AutoSize = true, Location = new Point(0, 0) });
+        header.Controls.Add(new Label { Text = subtitle, ForeColor = Color.FromArgb(102, 112, 133), AutoSize = true, Location = new Point(0, 22) });
+        header.Paint += (_, e) => { using var pen = new Pen(Color.FromArgb(231, 234, 240)); e.Graphics.DrawLine(pen, 0, header.Height - 1, header.Width, header.Height - 1); };
         var content = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, Padding = new Padding(0) };
         content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         outer.Controls.Add(content);
@@ -263,20 +268,20 @@ public partial class Form1
 
     private Panel RibbonGroup(string title, int width)
     {
-        var group = new Panel { Width = width, Height = 128, Margin = new Padding(4, 6, 4, 0), BackColor = Color.White };
+        var group = new Panel { Width = width, Height = 122, Margin = new Padding(4, 4, 4, 0), BackColor = Color.White };
         group.Paint += (_, e) =>
         {
-            using var pen = new Pen(Color.FromArgb(221, 227, 234));
-            e.Graphics.DrawLine(pen, group.Width - 1, 14, group.Width - 1, group.Height - 18);
+            using var pen = new Pen(Color.FromArgb(228, 232, 237));
+            e.Graphics.DrawLine(pen, group.Width - 1, 10, group.Width - 1, group.Height - 16);
         };
         var caption = new Label
         {
             Text = title,
             Dock = DockStyle.Bottom,
-            Height = 17,
+            Height = 16,
             TextAlign = ContentAlignment.BottomRight,
-            ForeColor = Color.FromArgb(107, 118, 131),
-            Font = new Font("Segoe UI", 8F),
+            ForeColor = Color.FromArgb(130, 140, 152),
+            Font = new Font("Segoe UI", 7.5F),
             BackColor = Color.White,
             Padding = new Padding(0, 0, 8, 2)
         };
@@ -286,7 +291,7 @@ public partial class Form1
             WrapContents = true,
             AutoSize = false,
             BackColor = Color.White,
-            Padding = new Padding(8, 10, 8, 4)
+            Padding = new Padding(8, 8, 8, 4)
         };
         group.Controls.Add(items);
         group.Controls.Add(caption);
@@ -369,12 +374,12 @@ public partial class Form1
 
     private Control PreviewStyle(string name, Color background, Color foreground, Action action)
     {
-        var panel = new Panel { Width = 58, Height = 56, BackColor = Color.White, Margin = new Padding(3, 0, 3, 0), Cursor = Cursors.Hand };
-        var preview = new Panel { Width = 52, Height = 28, BackColor = background, BorderStyle = BorderStyle.FixedSingle, Location = new Point(3, 4) };
-        var sample = new Label { Text = "Aa", ForeColor = foreground, Font = new Font("Segoe UI", 10F, FontStyle.Bold), AutoSize = true, Location = new Point((preview.Width - 18) / 2, (preview.Height - 16) / 2) };
+        var panel = new Panel { Width = 56, Height = 52, BackColor = Color.White, Margin = new Padding(3, 0, 3, 0), Cursor = Cursors.Hand };
+        var preview = new Panel { Width = 48, Height = 26, BackColor = background, BorderStyle = BorderStyle.FixedSingle, Location = new Point(4, 2) };
+        var sample = new Label { Text = "Aa", ForeColor = foreground, Font = new Font("Segoe UI", 9.5F, FontStyle.Bold), AutoSize = true, Location = new Point((preview.Width - 18) / 2, (preview.Height - 14) / 2) };
         preview.Controls.Add(sample);
         panel.Controls.Add(preview);
-        var caption = new Label { Text = name, ForeColor = Color.FromArgb(107, 118, 131), Font = new Font("Segoe UI", 7.5F), AutoSize = true, Location = new Point(3, 34) };
+        var caption = new Label { Text = name, ForeColor = Color.FromArgb(107, 118, 131), Font = new Font("Segoe UI", 7F), AutoSize = true, Location = new Point(4, 30) };
         panel.Controls.Add(caption);
         panel.Click += (_, _) => action();
         preview.Click += (_, _) => action();
@@ -401,13 +406,13 @@ public partial class Form1
         var button = new Button
         {
             Text = text,
-            Width = Math.Max(64, measured.Width + 28),
-            Height = 34,
-            Margin = new Padding(0, 0, 8, 0),
+            Width = Math.Max(60, measured.Width + 24),
+            Height = 32,
+            Margin = new Padding(0, 0, 6, 0),
             FlatStyle = FlatStyle.Flat,
             FlatAppearance = { BorderSize = 0 },
             BackColor = Color.White,
-            ForeColor = active ? _brand : Color.FromArgb(59, 73, 90),
+            ForeColor = active ? _brand : Color.FromArgb(102, 112, 133),
             Font = active ? boldFont : regularFont,
             Cursor = Cursors.Hand,
             UseVisualStyleBackColor = false,
@@ -421,8 +426,8 @@ public partial class Form1
                 e.Graphics.FillRectangle(brush, 0, button.Height - 2, button.Width, 2);
             }
         };
-        button.MouseEnter += (_, _) => { if (button.Tag is not true) button.BackColor = Color.FromArgb(240, 245, 250); };
-        button.MouseLeave += (_, _) => { if (button.Tag is not true) button.BackColor = Color.White; };
+        button.MouseEnter += (_, _) => { if (button.Tag is not true) { button.BackColor = Color.FromArgb(243, 246, 255); button.ForeColor = Color.FromArgb(52, 64, 84); } };
+        button.MouseLeave += (_, _) => { if (button.Tag is not true) { button.BackColor = Color.White; button.ForeColor = Color.FromArgb(102, 112, 133); } };
         return button;
     }
 
@@ -430,7 +435,7 @@ public partial class Form1
     {
         button.Tag = active;
         button.BackColor = Color.White;
-        button.ForeColor = active ? _brand : Color.FromArgb(59, 73, 90);
+        button.ForeColor = active ? _brand : Color.FromArgb(102, 112, 133);
         var previous = button.Font;
         button.Font = new Font("Segoe UI", 9.5F, active ? FontStyle.Bold : FontStyle.Regular);
         previous?.Dispose();
@@ -441,7 +446,7 @@ public partial class Form1
     {
         Text = text, Width = width, Height = height, BackColor = background, ForeColor = foreground, FlatStyle = FlatStyle.Flat,
         Font = new Font("Segoe UI", 9F, FontStyle.Bold), Margin = new Padding(0, 0, 6, 0), Cursor = Cursors.Hand,
-        FlatAppearance = { BorderColor = Color.FromArgb(196, 206, 216), BorderSize = 1 }, UseVisualStyleBackColor = false
+        FlatAppearance = { BorderColor = Color.FromArgb(218, 224, 231), BorderSize = 1 }, UseVisualStyleBackColor = false
     };
 
     private Button Preset(string text, Color background, Color foreground, Action action)
@@ -451,6 +456,6 @@ public partial class Form1
         return button;
     }
 
-    private static Label Hint(string text) => new() { Text = text, ForeColor = Color.FromArgb(112, 125, 138), AutoSize = true, MaximumSize = new Size(210, 0), Margin = new Padding(8, 7, 0, 0) };
-    private static Label SmallLabel(string text) => new() { Text = text, ForeColor = Color.FromArgb(77, 93, 111), Font = new Font("Segoe UI", 8F, FontStyle.Bold), AutoSize = true, Margin = new Padding(0, 0, 0, 4) };
+    private static Label Hint(string text) => new() { Text = text, ForeColor = Color.FromArgb(115, 125, 138), AutoSize = true, MaximumSize = new Size(210, 0), Margin = new Padding(8, 6, 0, 0) };
+    private static Label SmallLabel(string text) => new() { Text = text, ForeColor = Color.FromArgb(107, 118, 131), Font = new Font("Segoe UI", 8F, FontStyle.Bold), AutoSize = true, Margin = new Padding(0, 0, 0, 4) };
 }

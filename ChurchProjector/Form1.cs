@@ -27,7 +27,6 @@ public partial class Form1 : Form
     private SlideCanvas _audiencePreview = null!;
     private ComboBox _fontFamily = null!;
     private ComboBox _fontSize = null!;
-    private CheckBox _autoFit = null!;
     private Button _boldButton = null!;
     private Button _italicButton = null!;
     private Button _underlineButton = null!;
@@ -100,9 +99,9 @@ public partial class Form1 : Form
     private readonly System.Windows.Forms.Timer _bgWatcherDebounce = new() { Interval = 600 };
     private readonly System.Windows.Forms.Timer _bgPollTimer = new() { Interval = 3000 };
     private bool _bgWatcherPending;
-    private readonly Color _brand = Color.FromArgb(22, 113, 180);
-    private readonly Color _darkBrand = Color.FromArgb(14, 83, 143);
-    private readonly Color _panelBorder = Color.FromArgb(210, 218, 227);
+    private readonly Color _brand = Color.FromArgb(65, 105, 225);
+    private readonly Color _darkBrand = Color.FromArgb(49, 84, 179);
+    private readonly Color _panelBorder = Color.FromArgb(217, 222, 231);
 
     private readonly System.Windows.Forms.Timer _syncTimer = new();
     private ToolStripStatusLabel? _statusSync;
@@ -417,7 +416,7 @@ public partial class Form1 : Form
         var live = (_projector is { IsDisposed: false }) || _videoProjector is not null;
         _statusProjector.Text = live ? "\u25cf Projector: live" : "Projector: off";
         _statusProjector.ForeColor = live ? Color.FromArgb(150, 230, 180) : Color.White;
-        if (_projectorButton is not null) { _projectorButton.Text = live ? "\u25a3  Close projector" : "\u25a3  Open projector"; _projectorButton.BackColor = live ? Color.FromArgb(35, 157, 87) : Color.FromArgb(11, 77, 132); }
+        if (_projectorButton is not null) { _projectorButton.Text = live ? "\u25a3  Close projector" : "\u25a3  Open projector"; _projectorButton.BackColor = live ? Color.FromArgb(35, 157, 87) : Color.FromArgb(37, 66, 143); }
     }
     private void SetStageMode(StageMode mode) { _stageMode = _stageMode == mode ? StageMode.Slide : mode; if (_stageMode == StageMode.Logo && _logoImage is null) { SetLogoPath(); if (_logoImage is null) _stageMode = StageMode.Slide; } ApplyStageToProjectors(); UpdateStageStatus(); }
     private void ApplyStageToProjectors()
@@ -439,7 +438,7 @@ public partial class Form1 : Form
         var detail = _stageMode switch { StageMode.Black => "black screen", StageMode.Background => "background only", StageMode.Logo => "logo", _ => "live" };
         _statusProjector.Text = $"\u25cf Projector: {detail}";
     }
-    private static void SetStageButton(Button button, bool active) { button.BackColor = active ? Color.FromArgb(35, 157, 87) : Color.FromArgb(232, 237, 244); button.ForeColor = active ? Color.White : Color.FromArgb(31, 48, 68); }
+    private static void SetStageButton(Button button, bool active) { button.BackColor = active ? Color.FromArgb(35, 157, 87) : Color.FromArgb(243, 246, 255); button.ForeColor = active ? Color.White : Color.FromArgb(52, 64, 84); }
     private void SetLogoPath() { using var dialog = new OpenFileDialog { Filter = "Image files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All files|*.*", Title = "Choose church logo" }; if (dialog.ShowDialog(this) != DialogResult.OK) return; var path = _store.ImportLogo(dialog.FileName); if (string.IsNullOrEmpty(path)) return; _data.BackgroundPreferences.LogoPath = path; _logoImage?.Dispose(); try { _logoImage = Image.FromFile(path); } catch { _logoImage = null; } Persist(); }
     private void LoadLogoImage() { _logoImage?.Dispose(); _logoImage = null; var path = _data.BackgroundPreferences.LogoPath; if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return; try { _logoImage = Image.FromFile(path); } catch { _logoImage = null; } }
     private void ChooseTextColor() { using var dialog = new ColorDialog { Color = _theme.TextColor, FullOpen = true }; if (dialog.ShowDialog(this) != DialogResult.OK) return; _theme.TextColor = dialog.Color; _fontColorButton.Swatch = dialog.Color; RefreshSlides(); }

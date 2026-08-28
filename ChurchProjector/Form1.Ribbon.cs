@@ -8,14 +8,14 @@ public partial class Form1
         Text = "MPH Songs";
         MinimumSize = new Size(1120, 720);
         WindowState = FormWindowState.Maximized;
-        BackColor = Color.FromArgb(241, 244, 247);
+        BackColor = Color.FromArgb(245, 247, 250);
         Font = new Font("Segoe UI", 9F);
 
         var header = BuildHeader();
-        var tabBar = new Panel { Dock = DockStyle.Top, Height = 34, BackColor = Color.White, Padding = new Padding(10, 0, 0, 0) };
+        var tabBar = new Panel { Dock = DockStyle.Top, Height = 32, BackColor = Color.White, Padding = new Padding(10, 0, 0, 0) };
         tabBar.Paint += (_, e) =>
         {
-            using var pen = new Pen(Color.FromArgb(214, 221, 229));
+            using var pen = new Pen(Color.FromArgb(217, 222, 231));
             e.Graphics.DrawLine(pen, 0, tabBar.Height - 1, tabBar.Width, tabBar.Height - 1);
         };
         var backgroundTab = TabButton("Background", false);
@@ -31,10 +31,10 @@ public partial class Form1
         tabBar.Controls.Add(backgroundTab);
         tabBar.Controls.Add(textTab);
 
-        _ribbonHost = new Panel { Dock = DockStyle.Top, Height = 148, BackColor = Color.White };
+        _ribbonHost = new Panel { Dock = DockStyle.Top, Height = 140, BackColor = Color.White };
         _ribbonHost.Paint += (_, e) =>
         {
-            using var pen = new Pen(Color.FromArgb(214, 221, 229));
+            using var pen = new Pen(Color.FromArgb(217, 222, 231));
             e.Graphics.DrawLine(pen, 0, _ribbonHost.Height - 1, _ribbonHost.Width, _ribbonHost.Height - 1);
         };
         _ribbonHost.Resize += (_, _) => RelayoutRibbon();
@@ -131,27 +131,27 @@ public partial class Form1
 
     private Control BuildHeader()
     {
-        var header = new Panel { Dock = DockStyle.Top, Height = 48, BackColor = _brand };
-        var brand = new TableLayoutPanel { Dock = DockStyle.Left, AutoSize = true, Height = 48, ColumnCount = 3, RowCount = 1, BackColor = _brand, Padding = new Padding(14, 0, 0, 0) };
+        var header = new Panel { Dock = DockStyle.Top, Height = 44, BackColor = _brand };
+        var brand = new TableLayoutPanel { Dock = DockStyle.Left, AutoSize = true, Height = 44, ColumnCount = 3, RowCount = 1, BackColor = _brand, Padding = new Padding(14, 0, 0, 0) };
         brand.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         brand.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         brand.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        brand.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
-        var star = new Label { Text = "✦", Font = new Font("Segoe UI Symbol", 18F, FontStyle.Bold), ForeColor = Color.FromArgb(255, 210, 64), AutoSize = true, Anchor = AnchorStyles.None };
-        var title = new Label { Text = "MPH SONGS", ForeColor = Color.White, Font = new Font("Segoe UI", 13F, FontStyle.Bold), AutoSize = true, Anchor = AnchorStyles.None, Margin = new Padding(10, 0, 14, 0) };
-        var subtitle = new Label { Text = "Sunday service · Ready", ForeColor = Color.FromArgb(213, 235, 251), AutoSize = true, Anchor = AnchorStyles.None, Margin = new Padding(0, 2, 0, 0) };
+        brand.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+        var star = new Label { Text = "✦", Font = new Font("Segoe UI Symbol", 16F, FontStyle.Bold), ForeColor = Color.FromArgb(255, 210, 64), AutoSize = true, Anchor = AnchorStyles.None };
+        var title = new Label { Text = "MPH SONGS", ForeColor = Color.White, Font = new Font("Segoe UI", 12.5F, FontStyle.Bold), AutoSize = true, Anchor = AnchorStyles.None, Margin = new Padding(8, 0, 12, 0) };
+        var subtitle = new Label { Text = "Sunday service · Ready", ForeColor = Color.FromArgb(224, 234, 255), AutoSize = true, Anchor = AnchorStyles.None, Margin = new Padding(0, 2, 0, 0) };
         brand.Controls.Add(star, 0, 0);
         brand.Controls.Add(title, 1, 0);
         brand.Controls.Add(subtitle, 2, 0);
         header.Controls.Add(brand);
-        var actions = new FlowLayoutPanel { Dock = DockStyle.Right, FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Height = 48, Padding = new Padding(0, 8, 14, 0), WrapContents = false, BackColor = _brand };
-        _blackButton = Button("◼  Black", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 84, 31);
+        var actions = new FlowLayoutPanel { Dock = DockStyle.Right, FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Height = 44, Padding = new Padding(0, 7, 14, 0), WrapContents = false, BackColor = _brand };
+        _blackButton = Button("◼  Black", Color.FromArgb(243, 246, 255), Color.FromArgb(52, 64, 84), 84, 31);
         _blackButton.Click += (_, _) => SetStageMode(StageMode.Black);
-        _hideTextButton = Button("▦  Hide text", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 104, 31);
+        _hideTextButton = Button("▦  Hide text", Color.FromArgb(243, 246, 255), Color.FromArgb(52, 64, 84), 104, 31);
         _hideTextButton.Click += (_, _) => SetStageMode(StageMode.Background);
-        _logoButton = Button("✦  Logo", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 84, 31);
+        _logoButton = Button("✦  Logo", Color.FromArgb(243, 246, 255), Color.FromArgb(52, 64, 84), 84, 31);
         _logoButton.Click += (_, _) => SetStageMode(StageMode.Logo);
-        _projectorButton = Button("▣  Open projector", Color.FromArgb(11, 77, 132), Color.White, 162, 31);
+        _projectorButton = Button("▣  Open projector", Color.FromArgb(37, 66, 143), Color.White, 162, 31);
         _projectorButton.Click += (_, _) => ToggleProjector();
         actions.Controls.AddRange([_blackButton, _hideTextButton, _logoButton, _projectorButton]);
         header.Controls.Add(actions);
@@ -302,8 +302,8 @@ public partial class Form1
 
     private Control BuildBackgroundRibbon()
     {
-        var ribbon = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, AutoScroll = true, BackColor = Color.White };
-        var colour = RibbonGroup("Colour", 330);
+        var ribbon = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, AutoScroll = false, BackColor = Color.White };
+        var colour = RibbonGroup("Colour", 150);
         foreach (var color in new[]
                  {
                      Color.FromArgb(22, 34, 52), Color.FromArgb(12, 79, 105), Color.FromArgb(74, 33, 95),
@@ -314,7 +314,7 @@ public partial class Form1
             swatch.Click += (_, _) => SetSolidBackground(color);
             Add(colour, swatch);
         }
-        var more = Button("More…", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 56, 36);
+        var more = Button("More…", Color.FromArgb(243, 246, 255), Color.FromArgb(52, 64, 84), 56, 36);
         more.Click += (_, _) => ChooseBackgroundColor();
         Add(colour, more);
 
@@ -337,15 +337,15 @@ public partial class Form1
         RefreshBackgroundGalleries();
 
         var animation = RibbonGroup("Animation", 300);
-        var animNone = Button("▢", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 56, 56);
+        var animNone = Button("▢", Color.FromArgb(243, 246, 255), Color.FromArgb(52, 64, 84), 56, 56);
         animNone.Font = new Font("Segoe UI", 14F);
-        animNone.FlatAppearance.BorderColor = Color.FromArgb(210, 218, 227);
-        var animOverlap = Button("▣", Color.FromArgb(200, 205, 210), Color.FromArgb(31, 48, 68), 56, 56);
+        animNone.FlatAppearance.BorderColor = Color.FromArgb(217, 222, 231);
+        var animOverlap = Button("▣", Color.FromArgb(200, 205, 210), Color.FromArgb(52, 64, 84), 56, 56);
         animOverlap.Font = new Font("Segoe UI", 14F);
         animOverlap.FlatAppearance.BorderColor = Color.FromArgb(160, 170, 180);
-        var animOut1 = Button("⤢", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 56, 56);
+        var animOut1 = Button("⤢", Color.FromArgb(243, 246, 255), Color.FromArgb(52, 64, 84), 56, 56);
         animOut1.Font = new Font("Segoe UI", 12F);
-        var animOut2 = Button("⤡", Color.FromArgb(232, 237, 244), Color.FromArgb(31, 48, 68), 56, 56);
+        var animOut2 = Button("⤡", Color.FromArgb(243, 246, 255), Color.FromArgb(52, 64, 84), 56, 56);
         animOut2.Font = new Font("Segoe UI", 12F);
         var animTip = new ToolTip();
         animTip.SetToolTip(animNone, "No animation");
@@ -359,7 +359,7 @@ public partial class Form1
         {
             var isCurrent = string.Equals(value, _theme.AspectRatio, StringComparison.OrdinalIgnoreCase) || (value == "Current" && string.Equals(_theme.AspectRatio, "Current", StringComparison.OrdinalIgnoreCase));
             var w = value == "Current" ? 66 : 56;
-            var choice = Button(value, isCurrent ? _brand : Color.White, isCurrent ? Color.White : Color.FromArgb(31, 48, 68), w, 32);
+            var choice = Button(value, isCurrent ? _brand : Color.White, isCurrent ? Color.White : Color.FromArgb(52, 64, 84), w, 32);
             choice.Click += (_, _) => SetAspectRatio(value, ratio);
             Add(ratio, choice);
         }
@@ -374,7 +374,7 @@ public partial class Form1
         {
             var selected = control.Text == value;
             control.BackColor = selected ? _brand : Color.White;
-            control.ForeColor = selected ? Color.White : Color.FromArgb(31, 48, 68);
+            control.ForeColor = selected ? Color.White : Color.FromArgb(52, 64, 84);
         }
         SaveBackgroundPreferences();
         RefreshSlides();

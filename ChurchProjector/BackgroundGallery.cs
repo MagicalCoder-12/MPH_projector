@@ -14,7 +14,7 @@ internal sealed class BackgroundGalleryPanel : Panel
         Width = 320;
         Height = 108;
         var gallery = new BackgroundGallery { Bounds = new Rectangle(0, 0, 320, 92), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom, WithoutLabel = caption == "Video" ? "Without video" : "Without image" };
-        var label = new Label { Text = caption, Bounds = new Rectangle(0, 92, 320, 15), Anchor = AnchorStyles.Bottom, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Color.FromArgb(96, 108, 124), Font = new Font("Segoe UI", 8.25F), BackColor = Color.White, Margin = new Padding(0) };
+        var label = new Label { Text = caption, Bounds = new Rectangle(0, 92, 320, 15), Anchor = AnchorStyles.Bottom, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Color.FromArgb(102, 112, 133), Font = new Font("Segoe UI", 8.25F), BackColor = Color.White, Margin = new Padding(0) };
         Controls.Add(gallery);
         Controls.Add(label);
         gallery.AssetSelected += asset => AssetSelected?.Invoke(asset);
@@ -156,13 +156,13 @@ internal sealed class BackgroundGallery : Control
         base.OnPaint(e);
         var g = e.Graphics;
         g.Clear(BackColor);
-        using var border = new Pen(Color.FromArgb(166, 178, 190));
+        using var border = new Pen(Color.FromArgb(217, 222, 231));
         g.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
         g.DrawLine(border, Width - ArrowWidth, 1, Width - ArrowWidth, Height - 1);
         if (_entries.Count == 0 && !string.IsNullOrEmpty(EmptyText))
         {
             using var font = new Font("Segoe UI", 8.25F);
-            using var brush = new SolidBrush(Color.FromArgb(142, 152, 164));
+            using var brush = new SolidBrush(Color.FromArgb(152, 162, 179));
             var size = g.MeasureString(EmptyText, font);
             g.DrawString(EmptyText, font, brush, (Width - ArrowWidth - size.Width) / 2f, (Height - size.Height) / 2f);
         }
@@ -180,7 +180,7 @@ internal sealed class BackgroundGallery : Control
         var selected = entry.Asset is null ? _selectedId is null : entry.Asset.Id == _selectedId;
         if (selected || index == _hoverCell)
         {
-            using var fill = new SolidBrush(selected ? Color.FromArgb(207, 229, 249) : Color.FromArgb(233, 241, 249));
+            using var fill = new SolidBrush(selected ? Color.FromArgb(232, 238, 255) : Color.FromArgb(243, 246, 255));
             g.FillRectangle(fill, rect);
         }
         var thumbRect = ThumbRect(rect);
@@ -202,7 +202,7 @@ internal sealed class BackgroundGallery : Control
         }
         if (selected)
         {
-            using var pen = new Pen(Color.FromArgb(22, 113, 180));
+            using var pen = new Pen(Color.FromArgb(65, 105, 225));
             g.DrawRectangle(pen, rect.X, rect.Y, rect.Width - 1, rect.Height - 1);
         }
     }
@@ -211,13 +211,13 @@ internal sealed class BackgroundGallery : Control
     {
         if (hot && enabled)
         {
-            using var fill = new SolidBrush(Color.FromArgb(224, 236, 247));
+            using var fill = new SolidBrush(Color.FromArgb(232, 238, 255));
             g.FillRectangle(fill, bounds);
         }
-        using var pen = new Pen(Color.FromArgb(198, 207, 216));
+        using var pen = new Pen(Color.FromArgb(217, 222, 231));
         if (up) g.DrawLine(pen, bounds.Left, bounds.Bottom, bounds.Right, bounds.Bottom);
         else g.DrawLine(pen, bounds.Left, bounds.Top, bounds.Right, bounds.Top);
-        using var brush = new SolidBrush(enabled ? Color.FromArgb(72, 86, 102) : Color.FromArgb(198, 206, 214));
+        using var brush = new SolidBrush(enabled ? Color.FromArgb(102, 112, 133) : Color.FromArgb(207, 215, 224));
         var cx = bounds.Left + bounds.Width / 2f;
         var cy = bounds.Top + bounds.Height / 2f;
         PointF[] points = up
@@ -230,19 +230,19 @@ internal sealed class BackgroundGallery : Control
     {
         if (hot)
         {
-            using var fill = new SolidBrush(Color.FromArgb(224, 236, 247));
+            using var fill = new SolidBrush(Color.FromArgb(232, 238, 255));
             g.FillRectangle(fill, bounds);
         }
-        using var pen = new Pen(Color.FromArgb(198, 207, 216));
+        using var pen = new Pen(Color.FromArgb(217, 222, 231));
         g.DrawLine(pen, bounds.Left, bounds.Top, bounds.Right, bounds.Top);
-        using var brush = new SolidBrush(Color.FromArgb(72, 86, 102));
+        using var brush = new SolidBrush(Color.FromArgb(102, 112, 133));
         var cx = bounds.Left + bounds.Width / 2f;
         var cy = bounds.Top + bounds.Height / 2f;
         PointF[] outer = [new PointF(cx - 4, cy - 1), new PointF(cx + 4, cy - 1), new PointF(cx, cy + 3)];
         PointF[] inner = [new PointF(cx - 4, cy - 4), new PointF(cx + 4, cy - 4), new PointF(cx, cy)];
         g.FillPolygon(brush, outer);
         g.FillPolygon(Brushes.White, inner);
-        using var thin = new Pen(Color.FromArgb(72, 86, 102), 1f);
+        using var thin = new Pen(Color.FromArgb(102, 112, 133), 1f);
         g.DrawLine(thin, bounds.Left + 2, bounds.Top + 2, bounds.Right - 2, bounds.Top + 2);
     }
 
