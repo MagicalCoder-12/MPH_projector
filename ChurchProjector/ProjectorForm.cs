@@ -5,7 +5,9 @@ namespace ChurchProjector;
 public sealed class ProjectorForm : Form
 {
     private readonly SlideCanvas _canvas;
+    private readonly TransitionOverlay _transitionOverlay;
     private readonly Label _exitHint;
+    private readonly System.Windows.Forms.Timer _transitionTimer = new() { Interval = 16 };
     private Screen? _targetScreen;
     private string _text = "";
     private PresentationTheme? _theme;
@@ -30,6 +32,7 @@ public sealed class ProjectorForm : Form
         Shown += (_, _) => FitToScreen();
         DpiChanged += (_, _) => FitToScreen();
         _canvas = new SlideCanvas { Dock = DockStyle.Fill, BackColor = Color.Black };
+        _transitionOverlay = new TransitionOverlay { Dock = DockStyle.Fill, Alpha = 0 };
         _exitHint = new Label
         {
             Text = "Press Esc to close projector",
@@ -42,7 +45,13 @@ public sealed class ProjectorForm : Form
             Visible = false
         };
         Controls.Add(_canvas);
+        Controls.Add(_transitionOverlay);
         Controls.Add(_exitHint);
+        _transitionTimer.Tick += (_, _) =>
+        {
+            _transitionOverlay.Alpha = Math.Max(0, _transitionOverlay.Alpha - 24);
+            if (_transitionOverlay.Alpha == 0) _transitionTimer.Stop();
+        };
         Resize += (_, _) => _exitHint.Location = new Point(ClientSize.Width - _exitHint.Width - 18, 18);
         MouseMove += (_, _) => { _exitHint.Visible = true; _exitHint.BringToFront(); };
         KeyDown += (_, e) => { if (e.KeyCode == Keys.Escape) Close(); };
@@ -66,9 +75,11 @@ public sealed class ProjectorForm : Form
 
     public void SetSlide(string text, PresentationTheme theme)
     {
+        var shouldTransition = !string.IsNullOrEmpty(_text) && !string.Equals(_text, text, StringComparison.Ordinal);
         _text = text;
         _theme = theme;
         Render();
+        if (shouldTransition) PlayTransition(theme.SlideTransition);
     }
 
     public void SetStage(StageMode stage, Image? logo)
@@ -86,5 +97,49 @@ public sealed class ProjectorForm : Form
         _canvas.Theme = _theme;
         _canvas.SlideText = _text;
         _canvas.Invalidate();
+    }
+
+    private void PlayTransition(string transition)
+    {
+        _transitionTimer.Stop();
+        if (string.Equals(transition, "None", StringComparison.OrdinalIgnoreCase))
+        {
+            _transitionOverlay.Alpha = 0;
+            return;
+        }
+        _transitionOverlay.Alpha = string.Equals(transition, "Cross fade", StringComparison.OrdinalIgnoreCase) ? 120 : 80;
+        _transitionOverlay.BringToFront();
+        _exitHint.BringToFront();
+        _transitionTimer.Start();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) _transitionTimer.Dispose();
+        base.Dispose(disposing);
+    }
+
+    private sealed class TransitionOverlay : Control
+    {
+        private int _alpha;
+
+        public int Alpha
+        {
+            get => _alpha;
+            set { _alpha = Math.Clamp(value, 0, 255); Invalidate(); }
+        }
+
+        public TransitionOverlay()
+        {
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
+            BackColor = Color.Transparent;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            if (_alpha == 0) return;
+            using var brush = new SolidBrush(Color.FromArgb(_alpha, Color.Black));
+            e.Graphics.FillRectangle(brush, ClientRectangle);
+        }
     }
 }

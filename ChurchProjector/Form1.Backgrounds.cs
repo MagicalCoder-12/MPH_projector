@@ -109,6 +109,7 @@ public partial class Form1
         _theme.BackgroundColor = Color.FromArgb(preferences.BackgroundColorArgb);
         _theme.Brightness = Math.Clamp(preferences.Brightness, -75, 75);
         _theme.AspectRatio = string.IsNullOrWhiteSpace(preferences.AspectRatio) ? "16:9" : preferences.AspectRatio;
+        _theme.SlideTransition = string.IsNullOrWhiteSpace(preferences.SlideTransition) ? "Cross fade" : preferences.SlideTransition;
         _theme.VideoLoop = preferences.VideoLoop;
         _theme.AutoFit = preferences.AutoFit;
         if (preferences.SelectedBackgroundId is not Guid id) return;
@@ -267,6 +268,7 @@ public partial class Form1
         _data.BackgroundPreferences.BackgroundColorArgb = _theme.BackgroundColor.ToArgb();
         _data.BackgroundPreferences.Brightness = _theme.Brightness;
         _data.BackgroundPreferences.AspectRatio = _theme.AspectRatio;
+        _data.BackgroundPreferences.SlideTransition = _theme.SlideTransition;
         _data.BackgroundPreferences.SelectedBackgroundId = _theme.BackgroundAssetId;
         _data.BackgroundPreferences.VideoLoop = _theme.VideoLoop;
         _data.BackgroundPreferences.AutoFit = _theme.AutoFit;

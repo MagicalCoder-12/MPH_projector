@@ -25,6 +25,7 @@ public sealed class PresentationTheme
     public bool VideoLoop { get; set; } = true;
     public int Brightness { get; set; }
     public string AspectRatio { get; set; } = "16:9";
+    public string SlideTransition { get; set; } = "Cross fade";
     public bool AutoFit { get; set; }
 }
 
@@ -38,8 +39,29 @@ public enum StageMode
 
 public sealed class SlideCanvas : Control
 {
+    private readonly System.Windows.Forms.Timer _transitionTimer = new() { Interval = 16 };
+    private string _slideText = "";
+    private float _transitionProgress = 1F;
+    private string _transition = "None";
     public PresentationTheme? Theme { get; set; }
-    public string SlideText { get; set; } = "";
+    public string SlideText
+    {
+        get => _slideText;
+        set
+        {
+            if (string.Equals(_slideText, value, StringComparison.Ordinal)) return;
+            var animate = Theme is not null && !string.Equals(Theme.SlideTransition, "None", StringComparison.OrdinalIgnoreCase) && _slideText.Length > 0;
+            _slideText = value;
+            if (animate)
+            {
+                _transition = Theme!.SlideTransition;
+                _transitionProgress = 0F;
+                _transitionTimer.Start();
+            }
+            else _transitionProgress = 1F;
+            Invalidate();
+        }
+    }
     public StageMode Stage { get; set; } = StageMode.Slide;
     public Image? LogoImage { get; set; }
 
@@ -47,6 +69,12 @@ public sealed class SlideCanvas : Control
     {
         DoubleBuffered = true;
         ResizeRedraw = true;
+        _transitionTimer.Tick += (_, _) =>
+        {
+            _transitionProgress = Math.Min(1F, _transitionProgress + .14F);
+            if (_transitionProgress >= 1F) _transitionTimer.Stop();
+            Invalidate();
+        };
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -72,7 +100,21 @@ public sealed class SlideCanvas : Control
             DrawLogo(e.Graphics, canvas, LogoImage);
             return;
         }
-        if (Stage == StageMode.Slide) DrawText(e.Graphics, canvas, SlideText, theme);
+        if (Stage == StageMode.Slide)
+        {
+            var state = e.Graphics.Save();
+            if (string.Equals(_transition, "Zoom in", StringComparison.OrdinalIgnoreCase) || string.Equals(_transition, "Zoom out", StringComparison.OrdinalIgnoreCase))
+            {
+                var scale = string.Equals(_transition, "Zoom in", StringComparison.OrdinalIgnoreCase)
+                    ? .92F + .08F * _transitionProgress
+                    : 1.08F - .08F * _transitionProgress;
+                e.Graphics.TranslateTransform(canvas.X + canvas.Width / 2F, canvas.Y + canvas.Height / 2F);
+                e.Graphics.ScaleTransform(scale, scale);
+                e.Graphics.TranslateTransform(-(canvas.X + canvas.Width / 2F), -(canvas.Y + canvas.Height / 2F));
+            }
+            DrawText(e.Graphics, canvas, SlideText, theme, _transitionProgress);
+            e.Graphics.Restore(state);
+        }
     }
 
     public static void DrawSlide(Graphics graphics, Rectangle canvas, string text, PresentationTheme theme)
@@ -81,7 +123,7 @@ public sealed class SlideCanvas : Control
         DrawText(graphics, canvas, text, theme);
     }
 
-    private static void DrawText(Graphics graphics, Rectangle canvas, string text, PresentationTheme theme)
+    private static void DrawText(Graphics graphics, Rectangle canvas, string text, PresentationTheme theme, float opacity = 1F)
     {
         using var shade = new SolidBrush(Color.FromArgb(35, Color.Black));
         graphics.FillRectangle(shade, canvas);
@@ -89,23 +131,55 @@ public sealed class SlideCanvas : Control
         var style = FontStyle.Regular;
         if (theme.Bold) style |= FontStyle.Bold;
         if (theme.Italic) style |= FontStyle.Italic;
+        if (theme.Underline) style |= FontStyle.Underline;
+        if (theme.Strikethrough) style |= FontStyle.Strikeout;
         
         var availableWidth = Math.Max(40, canvas.Width - (canvas.Width * 16 / 100));
         var textArea = new RectangleF(canvas.X + canvas.Width * .08F, canvas.Y + canvas.Height * .12F, availableWidth, canvas.Height * .76F);
         var baseSize = Math.Max(12, canvas.Width * theme.FontSize / 1280F);
         var fontSize = theme.AutoFit ? FitFontSize(graphics, text, textArea, theme.FontFamily, style, baseSize) : baseSize;
+        if (theme.Subscript || theme.Superscript) fontSize *= .72F;
         using var font = new Font(theme.FontFamily, fontSize, style, GraphicsUnit.Pixel);
         using var format = new StringFormat 
         { 
-            LineAlignment = StringAlignment.Center, 
+            LineAlignment = StringAlignment.Near,
             Alignment = theme.Alignment switch { "Left" => StringAlignment.Near, "Right" => StringAlignment.Far, "Justify" => StringAlignment.Center, _ => StringAlignment.Center }, 
             Trimming = StringTrimming.Word 
         };
-        using var shadow = new SolidBrush(Color.FromArgb(190, Color.Black));
-        var shadowArea = new RectangleF(textArea.X + 3, textArea.Y + 4, textArea.Width, textArea.Height);
-        graphics.DrawString(text, font, shadow, shadowArea, format);
-        using var brush = new SolidBrush(theme.TextColor);
-        graphics.DrawString(text, font, brush, textArea, format);
+        using var shadow = new SolidBrush(Color.FromArgb((int)(190 * opacity), Color.Black));
+        using var brush = new SolidBrush(Color.FromArgb((int)(255 * opacity), theme.TextColor));
+        var lines = text.Split(Environment.NewLine, StringSplitOptions.None);
+        var lineHeight = font.GetHeight(graphics) * Math.Max(.8F, theme.LineSpacing);
+        var totalHeight = lineHeight * lines.Length;
+        var y = textArea.Y + (textArea.Height - totalHeight) / 2F;
+        if (theme.Superscript) y -= fontSize * .35F;
+        if (theme.Subscript) y += fontSize * .35F;
+        foreach (var line in lines)
+        {
+            var lineArea = new RectangleF(textArea.X, y, textArea.Width, lineHeight);
+            if (theme.HighlightColor != Color.Transparent && !string.IsNullOrWhiteSpace(line))
+            {
+                var measured = graphics.MeasureString(line, font);
+                var width = Math.Min(measured.Width, textArea.Width);
+                var x = format.Alignment switch
+                {
+                    StringAlignment.Far => textArea.Right - width,
+                    StringAlignment.Center => textArea.X + (textArea.Width - width) / 2F,
+                    _ => textArea.X
+                };
+                using var highlight = new SolidBrush(theme.HighlightColor);
+                graphics.FillRectangle(highlight, x - 3F, y + 2F, width + 6F, Math.Max(2F, font.GetHeight(graphics)));
+            }
+            graphics.DrawString(line, font, shadow, new RectangleF(lineArea.X + 3F, lineArea.Y + 4F, lineArea.Width, lineArea.Height), format);
+            graphics.DrawString(line, font, brush, lineArea, format);
+            y += lineHeight;
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) _transitionTimer.Dispose();
+        base.Dispose(disposing);
     }
 
     private static float FitFontSize(Graphics graphics, string text, RectangleF area, string family, FontStyle style, float startSize)

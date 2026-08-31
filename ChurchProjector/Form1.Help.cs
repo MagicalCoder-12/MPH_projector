@@ -2,28 +2,6 @@ namespace ChurchProjector;
 
 public partial class Form1
 {
-    private Control BuildHelpRibbon()
-    {
-        var ribbon = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, AutoScroll = true, BackColor = Color.White };
-        var start = RibbonGroup("Getting started", 355);
-        Add(start, Hint("1. Open or create a song.  2. Add it to the service agenda.  3. Choose a slide.  4. Press F5 to project."));
-        var keyboard = RibbonGroup("Keyboard shortcuts", 330);
-        Add(keyboard, Hint("Arrows or Page Up/Page Down: slides.  1-9: jump to song verses.  F5: projector.  Esc: close projector."));
-        var storage = RibbonGroup("Library", 275);
-        Add(storage, Hint("Songs, agenda items, Bible translations, and verses are saved automatically on this computer."));
-        var backup = RibbonGroup("Backup", 250);
-        var export = Button("Export", _brand, Color.White, 90, 34);
-        export.Click += (_, _) => ExportLibrary();
-        var import = Button("Import", Color.White, Color.FromArgb(52, 64, 84), 90, 34);
-        import.Click += (_, _) => ImportLibrary();
-        Add(backup, export, import, Hint("Export a .mphbundle to move your whole library to another computer."));
-        var sync = RibbonGroup("Cloud sync", 380);
-        var syncRefresh = Button("Refresh now", Color.White, Color.FromArgb(52, 64, 84), 95, 34);
-        syncRefresh.Click += async (_, _) => await SyncFromApiAsync();
-        Add(sync, syncRefresh, Hint("Songs sync automatically with mph-songs.vercel.app every 60 seconds. Click Refresh now for an immediate sync."));
-        ribbon.Controls.AddRange([start, keyboard, storage, backup, sync]);
-        return ribbon;
-    }
 
     private Control BuildHelpWorkspace()
     {

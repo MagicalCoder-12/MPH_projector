@@ -53,6 +53,8 @@ public partial class Form1
             FilterLibrary(_librarySearch.Text);
         };
         sortPanel.Controls.Add(_librarySort);
+        _songCountLabel = new Label { Text = "", AutoSize = true, ForeColor = Color.FromArgb(107, 118, 131), Font = new Font("Segoe UI", 8F), Margin = new Padding(8, 4, 0, 0) };
+        sortPanel.Controls.Add(_songCountLabel);
         libraryContent.Controls.Add(sortPanel, 0, 1);
 
         // Song list
@@ -121,17 +123,56 @@ public partial class Form1
 
     private Control BuildSlidesPanel()
     {
-        var outer = Section("Slides / Verses", "Select a slide to preview");
+        var outer = Section("Slides", "Select a slide to preview");
         var content = (TableLayoutPanel)outer.Tag!;
-        content.RowCount = 2;
+        content.RowCount = 1;
         content.RowStyles.Clear();
-        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        content.Controls.Add(SmallLabel("SLIDES"), 0, 0);
-        _slideList = new ListBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false, Font = new Font("Segoe UI", 9.5F), Margin = new Padding(0) };
+        _slideList = new ListBox
+        {
+            Dock = DockStyle.Fill,
+            BorderStyle = BorderStyle.FixedSingle,
+            IntegralHeight = false,
+            DrawMode = DrawMode.OwnerDrawVariable,
+            Font = new Font("Segoe UI", 10F),
+            BackColor = Color.White,
+            Margin = new Padding(0)
+        };
+        _slideList.MeasureItem += (_, e) =>
+        {
+            if (e.Index < 0 || e.Index >= _slideList.Items.Count) return;
+            var text = _slideList.Items[e.Index]?.ToString() ?? string.Empty;
+            var width = Math.Max(80, _slideList.ClientSize.Width - 82);
+            var measured = TextRenderer.MeasureText(e.Graphics, text, _slideList.Font, new Size(width, 0), TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+            e.ItemHeight = Math.Max(40, measured.Height + 10);
+        };
+        _slideList.DrawItem += (_, e) =>
+        {
+            if (e.Index < 0 || e.Index >= _slideList.Items.Count) return;
+            var selected = (e.State & DrawItemState.Selected) != 0;
+            using var background = new SolidBrush(selected ? AppTheme.Accent : Color.White);
+            e.Graphics.FillRectangle(background, e.Bounds);
+            using var divider = new Pen(selected ? Color.FromArgb(115, 150, 225) : AppTheme.BorderSubtle);
+            e.Graphics.DrawLine(divider, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+
+            var ink = selected ? Color.White : AppTheme.TextPrimary;
+            var box = new Rectangle(e.Bounds.Left + 8, e.Bounds.Top + (e.Bounds.Height - 13) / 2, 13, 13);
+            using var boxPen = new Pen(selected ? Color.White : AppTheme.TextSecondary);
+            e.Graphics.DrawRectangle(boxPen, box);
+            e.Graphics.DrawLine(boxPen, box.Left + 2, box.Top + 6, box.Left + 5, box.Bottom - 2);
+            e.Graphics.DrawLine(boxPen, box.Left + 5, box.Bottom - 2, box.Right - 2, box.Top + 2);
+
+            var label = $"V{e.Index + 1}";
+            using var labelFont = new Font("Segoe UI", 9F, FontStyle.Bold);
+            TextRenderer.DrawText(e.Graphics, label, labelFont, new Rectangle(e.Bounds.Left + 36, e.Bounds.Top, 38, e.Bounds.Height), selected ? Color.White : AppTheme.AccentDark, TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            var itemText = _slideList.Items[e.Index]?.ToString() ?? string.Empty;
+            var firstSpace = itemText.IndexOf("   ", StringComparison.Ordinal);
+            var lyricText = firstSpace >= 0 ? itemText[(firstSpace + 3)..] : itemText;
+            TextRenderer.DrawText(e.Graphics, lyricText, _slideList.Font, new Rectangle(e.Bounds.Left + 78, e.Bounds.Top + 5, Math.Max(20, e.Bounds.Width - 86), e.Bounds.Height - 10), ink, TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+        };
         _slideList.SelectedIndexChanged += (_, _) => { if (!_updating && _slideList.SelectedIndex >= 0) SelectSlide(_slideList.SelectedIndex); };
-        content.Controls.Add(_slideList, 0, 1);
+        content.Controls.Add(_slideList, 0, 0);
         return outer;
     }
 
@@ -372,21 +413,7 @@ public partial class Form1
         return btn;
     }
 
-    private Control PreviewStyle(string name, Color background, Color foreground, Action action)
-    {
-        var panel = new Panel { Width = 56, Height = 52, BackColor = Color.White, Margin = new Padding(3, 0, 3, 0), Cursor = Cursors.Hand };
-        var preview = new Panel { Width = 48, Height = 26, BackColor = background, BorderStyle = BorderStyle.FixedSingle, Location = new Point(4, 2) };
-        var sample = new Label { Text = "Aa", ForeColor = foreground, Font = new Font("Segoe UI", 9.5F, FontStyle.Bold), AutoSize = true, Location = new Point((preview.Width - 18) / 2, (preview.Height - 14) / 2) };
-        preview.Controls.Add(sample);
-        panel.Controls.Add(preview);
-        var caption = new Label { Text = name, ForeColor = Color.FromArgb(107, 118, 131), Font = new Font("Segoe UI", 7F), AutoSize = true, Location = new Point(4, 30) };
-        panel.Controls.Add(caption);
-        panel.Click += (_, _) => action();
-        preview.Click += (_, _) => action();
-        sample.Click += (_, _) => action();
-        caption.Click += (_, _) => action();
-        return panel;
-    }
+
 
     private static void Add(Panel group, params Control[] controls) => ((FlowLayoutPanel)group.Tag!).Controls.AddRange(controls);
 

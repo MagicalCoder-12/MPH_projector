@@ -34,6 +34,7 @@ public sealed class BackgroundPreferences
     public int BackgroundColorArgb { get; set; } = unchecked((int)0xFF162234);
     public int Brightness { get; set; }
     public string AspectRatio { get; set; } = "16:9";
+    public string SlideTransition { get; set; } = "Cross fade";
     public bool VideoLoop { get; set; } = true;
     public bool AutoFit { get; set; }
     public string? LogoPath { get; set; }
